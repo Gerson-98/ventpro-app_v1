@@ -1,0 +1,32 @@
+import { Controller, Get, Post, Body, Param, Delete, Put } from '@nestjs/common';
+import { WindowTypesService } from './window-types.service';
+
+@Controller('window-types')
+export class WindowTypesController {
+  constructor(private readonly windowTypesService: WindowTypesService) {}
+
+  @Post()
+  create(@Body() data: { name: string; description?: string }) {
+    return this.windowTypesService.create(data);
+  }
+
+  @Get()
+  findAll() {
+    return this.windowTypesService.findAll();
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.windowTypesService.findOne(+id);
+  }
+
+  @Put(':id')
+  update(@Param('id') id: string, @Body() data: { name?: string; description?: string }) {
+    return this.windowTypesService.update(+id, data);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.windowTypesService.remove(+id);
+  }
+}

@@ -1,0 +1,35 @@
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import Layout from "./components/layout/Layout";
+import Home from "./pages/Home";
+import Orders from "./pages/Orders";
+import Windows from "./pages/Windows";
+import "./index.css";
+import OrderDetail from "./pages/OrderDetail";
+import Clients from "./pages/Clients";
+import Admin from "./pages/Admin/Admin";
+
+
+const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <Layout />,
+    children: [
+      { path: "/", element: <Home /> },
+      { path: "/orders", element: <Orders /> },
+      { path: "/orders/:id", element: <OrderDetail /> }, // ✅ Ruta dinámica
+      { path: "/windows", element: <Windows /> },
+      { path: "/clients", element: <Clients /> },
+      { path: "/admin", element: <Admin /> },
+      
+
+    ],
+  },
+]);
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <React.StrictMode>
+    <RouterProvider router={router} />
+  </React.StrictMode>
+);
