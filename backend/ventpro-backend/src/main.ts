@@ -39,7 +39,7 @@ async function bootstrap() {
     return res.sendFile(path.resolve(frontendPath, 'index.html'));
   });
 
-  const PORT = Number(process.env.PORT) || 3000;
+  const PORT = Number(process.env.PORT) || 8080;
   await app.listen(PORT, '0.0.0.0');
   console.log(`✅ Backend + Frontend listos en http://localhost:${PORT}`);
 }
