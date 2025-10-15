@@ -15,6 +15,8 @@ export default function AddClientModal({ open, onClose, onSave }) {
   })
   const [loading, setLoading] = useState(false)
 
+  const API_URL = import.meta.env.VITE_API_URL
+
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value })
 
@@ -22,7 +24,7 @@ export default function AddClientModal({ open, onClose, onSave }) {
     e.preventDefault()
     setLoading(true)
     try {
-      const res = await axios.post("http://localhost:3000/clients", form)
+      const res = await axios.post(`${API_URL}/clients`, form)
       onSave(res.data)
       setForm({ name: "", phone: "", email: "", address: "" })
       onClose()
@@ -36,7 +38,6 @@ export default function AddClientModal({ open, onClose, onSave }) {
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onClose}>
-      {/* ✅ Overlay personalizado SIN negro */}
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay
           className="fixed inset-0 bg-white/30 backdrop-blur-[6px] transition-all z-40"

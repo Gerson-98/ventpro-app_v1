@@ -5,19 +5,16 @@ import { PrismaService } from '../prisma/prisma.service';
 export class ClientsService {
   constructor(private prisma: PrismaService) {}
 
-  // Crear cliente
   create(data: { name: string; phone?: string; email?: string; address?: string }) {
     return this.prisma.clients.create({ data });
   }
 
-  // Obtener todos
   findAll() {
     return this.prisma.clients.findMany({
-      include: { orders: true }, // muestra pedidos del cliente
+      include: { orders: true },
     });
   }
 
-  // Obtener uno
   findOne(id: number) {
     return this.prisma.clients.findUnique({
       where: { id },
@@ -25,7 +22,6 @@ export class ClientsService {
     });
   }
 
-  // Actualizar
   update(id: number, data: { name?: string; phone?: string; email?: string; address?: string }) {
     return this.prisma.clients.update({
       where: { id },
@@ -33,7 +29,6 @@ export class ClientsService {
     });
   }
 
-  // Eliminar
   remove(id: number) {
     return this.prisma.clients.delete({ where: { id } });
   }

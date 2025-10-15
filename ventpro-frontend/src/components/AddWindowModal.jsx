@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "@/services/api";
 
 export default function AddWindowModal({ orderId, onClose, onSave }) {
   const [windowTypes, setWindowTypes] = useState([]);
@@ -12,7 +12,7 @@ export default function AddWindowModal({ orderId, onClose, onSave }) {
   const [height, setHeight] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // 🔹 Preview de cálculos en vivo
+  // Preview de cálculos
   const [preview, setPreview] = useState({
     hojaAncho: 0,
     hojaAlto: 0,
@@ -20,24 +20,40 @@ export default function AddWindowModal({ orderId, onClose, onSave }) {
     vidrioAlto: 0,
   });
 
-  // 🔹 Cargar catálogos
+  // 🔹 Cargar catálogos iniciales (solo PVC y Vidrio)
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [types, pvc, glass] = await Promise.all([
-          axios.get("http://localhost:3000/window-types"),
-          axios.get("http://localhost:3000/pvc-colors"),
-          axios.get("http://localhost:3000/glass-colors"),
+        const [pvc, glass] = await Promise.all([
+          api.get("/pvc-colors"),
+          api.get("/glass-colors"),
         ]);
-        setWindowTypes(types.data);
-        setPvcColors(pvc.data);
-        setGlassColors(glass.data);
+        setPvcColors(Array.isArray(pvc.data) ? pvc.data : []);
+        setGlassColors(Array.isArray(glass.data) ? glass.data : []);
       } catch (error) {
         console.error("❌ Error al cargar catálogos:", error);
       }
     };
     fetchData();
   }, []);
+
+  // 🔹 Cargar tipos de ventana según color PVC
+  useEffect(() => {
+    setSelectedWindowType(""); // limpiar selección previa
+    setWindowTypes([]); // limpiar lista actual
+
+    if (!selectedPvcColor) return;
+
+    api
+      .get(`/window-types/by-pvc/${selectedPvcColor}`)
+      .then((res) => {
+        setWindowTypes(Array.isArray(res.data) ? res.data : []);
+      })
+      .catch((err) => {
+        console.error("Error al cargar tipos:", err);
+        setWindowTypes([]);
+      });
+  }, [selectedPvcColor]);
 
   // 🔹 Cálculos automáticos
   useEffect(() => {
@@ -60,22 +76,17 @@ export default function AddWindowModal({ orderId, onClose, onSave }) {
     setLoading(true);
 
     try {
-      const windowType = windowTypes.find(
-        (t) => String(t.id) === String(selectedWindowType)
-      );
-
       const payload = {
-        orderId,
+        order_id: Number(orderId),
         width_cm: Number(width),
         height_cm: Number(height),
-        windowTypeId: Number(selectedWindowType),
-        windowTypeName: windowType ? windowType.name : "",
-        pvcColorId: selectedPvcColor ? Number(selectedPvcColor) : null,
-        glassColorId: selectedGlassColor ? Number(selectedGlassColor) : null,
+        window_type_id: Number(selectedWindowType),
+        color_id: selectedPvcColor ? Number(selectedPvcColor) : null,
+        glass_color_id: selectedGlassColor ? Number(selectedGlassColor) : null,
       };
 
       console.log("🪟 Enviando ventana:", payload);
-      const response = await axios.post("http://localhost:3000/windows", payload);
+      const response = await api.post("/windows", payload);
       console.log("✅ Ventana creada:", response.data);
 
       if (typeof onSave === "function") onSave(response.data);
@@ -88,7 +99,7 @@ export default function AddWindowModal({ orderId, onClose, onSave }) {
     }
   };
 
-  // 🔹 Cálculo de medidas según tipo
+  // 🔹 Cálculo de medidas
   function calculateMeasurements(windowType, width, height) {
     let hojaAncho = 0;
     let hojaAlto = 0;
@@ -129,8 +140,8 @@ export default function AddWindowModal({ orderId, onClose, onSave }) {
       case "VENTANA PROYECTABLE":
         hojaAncho = width - 6.3;
         hojaAlto = height - 6.3;
-        vidrioAncho = hojaAncho - 8.5;
-        vidrioAlto = hojaAlto - 8.5;
+        vidrioAncho = hojaAncho - 16.7;
+        vidrioAlto = hojaAlto - 16.7;
         break;
       case "VENTANA ABATIBLE DE 1 HOJA":
         hojaAncho = width - 4.5;
@@ -160,7 +171,25 @@ export default function AddWindowModal({ orderId, onClose, onSave }) {
         <h2 className="text-xl font-bold mb-4">➕ Agregar Ventana</h2>
 
         <form onSubmit={handleSubmit} className="space-y-3">
-          {/* Tipo */}
+          {/* Color PVC (primero) */}
+          <div>
+            <label className="block font-semibold mb-1">Color PVC</label>
+            <select
+              value={selectedPvcColor}
+              onChange={(e) => setSelectedPvcColor(e.target.value)}
+              className="w-full border p-2 rounded"
+              required
+            >
+              <option value="">Seleccione...</option>
+              {pvcColors.map((color) => (
+                <option key={color.id} value={color.id}>
+                  {color.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Tipo de ventana (filtrado por color) */}
           <div>
             <label className="block font-semibold mb-1">Tipo de ventana</label>
             <select
@@ -168,13 +197,22 @@ export default function AddWindowModal({ orderId, onClose, onSave }) {
               onChange={(e) => setSelectedWindowType(e.target.value)}
               required
               className="w-full border p-2 rounded"
+              disabled={!selectedPvcColor || windowTypes.length === 0}
             >
-              <option value="">Seleccione...</option>
-              {windowTypes.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.name}
-                </option>
-              ))}
+              {!selectedPvcColor ? (
+                <option value="">Seleccione color PVC primero…</option>
+              ) : windowTypes.length === 0 ? (
+                <option value="">Cargando tipos…</option>
+              ) : (
+                <>
+                  <option value="">Seleccione...</option>
+                  {windowTypes.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.name}
+                    </option>
+                  ))}
+                </>
+              )}
             </select>
           </div>
 
@@ -202,23 +240,7 @@ export default function AddWindowModal({ orderId, onClose, onSave }) {
             </div>
           </div>
 
-          {/* Colores */}
-          <div>
-            <label className="block font-semibold mb-1">Color PVC</label>
-            <select
-              value={selectedPvcColor}
-              onChange={(e) => setSelectedPvcColor(e.target.value)}
-              className="w-full border p-2 rounded"
-            >
-              <option value="">Seleccione...</option>
-              {pvcColors.map((color) => (
-                <option key={color.id} value={color.id}>
-                  {color.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
+          {/* Color de vidrio */}
           <div>
             <label className="block font-semibold mb-1">Color de vidrio</label>
             <select

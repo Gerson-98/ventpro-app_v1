@@ -1,5 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+} from '@nestjs/common';
 import { WindowsService } from './windows.service';
+import { UpdateWindowDto } from './dto/update-window.dto';
 
 @Controller('windows')
 export class WindowsController {
@@ -22,12 +31,18 @@ export class WindowsController {
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() data: any) {
-    return this.windowsService.update(Number(id), data);
+  update(@Param('id') id: string, @Body() dto: UpdateWindowDto) {
+    return this.windowsService.updateWindow(Number(id), dto);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.windowsService.remove(Number(id));
+  }
+
+  // ✅ DUPLICAR VENTANA
+  @Post(':id/duplicate')
+  async duplicateWindow(@Param('id') id: number) {
+    return this.windowsService.duplicateWindow(Number(id));
   }
 }

@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Param, Delete, Put } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  Put,
+} from '@nestjs/common';
 import { WindowTypesService } from './window-types.service';
 
 @Controller('window-types')
@@ -20,8 +28,16 @@ export class WindowTypesController {
     return this.windowTypesService.findOne(+id);
   }
 
+  @Get('by-pvc/:colorId')
+  findByPvc(@Param('colorId') colorId: string) {
+    return this.windowTypesService.findByPvcColor(Number(colorId));
+  }
+
   @Put(':id')
-  update(@Param('id') id: string, @Body() data: { name?: string; description?: string }) {
+  update(
+    @Param('id') id: string,
+    @Body() data: { name?: string; description?: string },
+  ) {
     return this.windowTypesService.update(+id, data);
   }
 

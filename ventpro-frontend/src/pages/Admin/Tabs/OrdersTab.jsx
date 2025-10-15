@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 
 // Dentro del componente principal:
 const [clients, setClients] = useState([]);
+const API_URL = import.meta.env.VITE_API_URL;
 
 useEffect(() => {
-  fetch("http://localhost:3000/clients")
+   fetch(`${API_URL}/clients`)
     .then((res) => res.json())
     .then((data) => setClients(data))
     .catch((err) => console.error("❌ Error al obtener clientes:", err));

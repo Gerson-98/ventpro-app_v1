@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
-import api from "@/services/api"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import api from "@/services/api";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -10,72 +10,76 @@ import {
   DialogTitle,
   DialogFooter,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import AddClientModal from "@/components/AddClientModal"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import AddClientModal from "@/components/AddClientModal";
 
 export default function Orders() {
-  const [orders, setOrders] = useState([])
-  const [clients, setClients] = useState([])
-  const [showAddClient, setShowAddClient] = useState(false)
+  const [orders, setOrders] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [showAddClient, setShowAddClient] = useState(false);
   const [formData, setFormData] = useState({
     project: "",
     clientId: "",
     total: "",
     status: "en proceso",
-  })
-  const [open, setOpen] = useState(false)
-  const navigate = useNavigate()
+  });
+  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
   // 🔹 Obtener pedidos
   const fetchOrders = async () => {
     try {
-      const res = await api.get("/orders")
-      setOrders(Array.isArray(res.data) ? res.data : [])
+      const res = await api.get("/orders");
+      const data = res.data;
+      setOrders(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error("❌ Error al obtener pedidos:", err)
+      console.error("❌ Error al obtener pedidos:", err);
+      setOrders([]);
     }
-  }
+  };
 
   // 🔹 Obtener clientes
   const fetchClients = async () => {
     try {
-      const res = await api.get("/clients")
-      setClients(Array.isArray(res.data) ? res.data : [])
+      const res = await api.get("/clients");
+      const data = res.data;
+      setClients(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error("❌ Error al obtener clientes:", err)
+      console.error("❌ Error al obtener clientes:", err);
+      setClients([]);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchOrders()
-    fetchClients()
-  }, [])
+    fetchOrders();
+    fetchClients();
+  }, []);
 
   // 🔹 Crear pedido
   const createOrder = async () => {
     try {
-      await api.post("/orders", formData)
-      setFormData({ project: "", clientId: "", total: "", status: "en proceso" })
-      setOpen(false)
-      fetchOrders()
+      await api.post("/orders", formData);
+      setFormData({ project: "", clientId: "", total: "", status: "en proceso" });
+      setOpen(false);
+      fetchOrders();
     } catch (err) {
-      console.error("❌ Error al crear pedido:", err)
-      alert("No se pudo crear el pedido.")
+      console.error("❌ Error al crear pedido:", err);
+      alert("No se pudo crear el pedido.");
     }
-  }
+  };
 
   // 🔹 Eliminar pedido
   const deleteOrder = async (id) => {
-    if (!confirm("¿Eliminar este pedido?")) return
+    if (!confirm("¿Eliminar este pedido?")) return;
     try {
-      await api.delete(`/orders/${id}`)
-      fetchOrders()
+      await api.delete(`/orders/${id}`);
+      fetchOrders();
     } catch (err) {
-      console.error("❌ Error al eliminar pedido:", err)
+      console.error("❌ Error al eliminar pedido:", err);
     }
-  }
+  };
 
   return (
     <div className="p-6 relative">
@@ -174,11 +178,11 @@ export default function Orders() {
               open={showAddClient}
               onClose={() => setShowAddClient(false)}
               onSave={(newClient) => {
-                setClients((prev) => [...prev, newClient])
+                setClients((prev) => [...prev, newClient]);
                 setFormData((prev) => ({
                   ...prev,
                   clientId: newClient.id,
-                }))
+                }));
               }}
             />
           </DialogContent>
@@ -236,5 +240,5 @@ export default function Orders() {
         </div>
       )}
     </div>
-  )
+  );
 }

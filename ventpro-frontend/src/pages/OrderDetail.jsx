@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import api from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { FaArrowLeft, FaCalendarAlt, FaFileAlt, FaUser } from "react-icons/fa";
-import { FaChartBar, FaPlus, FaTrashAlt, FaEdit } from "react-icons/fa";
+import { FaChartBar, FaPlus, FaTrashAlt, FaEdit, FaClone, FaSave } from "react-icons/fa";
 import AddWindowModal from "@/components/AddWindowModal";
 
 export default function OrderDetail() {
@@ -12,9 +12,34 @@ export default function OrderDetail() {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [editingWindow, setEditingWindow] = useState(null);
+  const [editingRow, setEditingRow] = useState(null);
+  const [editedValues, setEditedValues] = useState({});
+  const [savingRow, setSavingRow] = useState(false);
 
-  // 🔹 Obtener pedido desde API
+  const [windowTypes, setWindowTypes] = useState([]);
+  const [pvcColors, setPvcColors] = useState([]);
+  const [glassColors, setGlassColors] = useState([]);
+
+  // 🔹 Cargar catálogos (tipos, colores)
+  useEffect(() => {
+    const fetchCatalogs = async () => {
+      try {
+        const [types, pvc, glass] = await Promise.all([
+          api.get("/window-types"),
+          api.get("/pvc-colors"),
+          api.get("/glass-colors"),
+        ]);
+        setWindowTypes(types.data);
+        setPvcColors(pvc.data);
+        setGlassColors(glass.data);
+      } catch (err) {
+        console.error("❌ Error cargando catálogos:", err);
+      }
+    };
+    fetchCatalogs();
+  }, []);
+
+  // 🔹 Obtener pedido
   const fetchOrder = async () => {
     try {
       setLoading(true);
@@ -31,7 +56,7 @@ export default function OrderDetail() {
     fetchOrder();
   }, [id]);
 
-  // 🔹 Eliminar una ventana
+  // 🔹 Eliminar ventana
   const handleDelete = async (winId) => {
     if (!confirm("¿Seguro que deseas eliminar esta ventana?")) return;
     try {
@@ -43,11 +68,60 @@ export default function OrderDetail() {
     }
   };
 
-  // 🔹 Abrir ventana en modo edición
-  const openEdit = (win) => {
-    setEditingWindow(win);
-    setShowModal(true);
+  // 🔁 Duplicar ventana
+  const handleDuplicate = async (winId) => {
+    try {
+      const res = await api.post(`/windows/${winId}/duplicate`);
+      const newWindow = res.data;
+      setOrder((prev) => ({
+        ...prev,
+        windows: [...(prev.windows || []), newWindow],
+      }));
+    } catch (err) {
+      console.error("❌ Error al duplicar ventana:", err);
+      alert("No se pudo duplicar la ventana.");
+    }
   };
+
+  // ✏️ Editar ventana
+  // ✏️ Activar modo edición
+  const startEdit = (win) => {
+    setEditingRow(win.id);
+    setEditedValues({
+      width_cm: win.width_cm,
+      height_cm: win.height_cm,
+      // 👇 Aquí está el cambio importante
+      window_type_id: win.window_type?.id || "",
+      color_id: win.pvcColor?.id || "",
+      glass_color_id: win.glassColor?.id || "",
+    });
+  };
+
+
+  // 💾 Guardar cambios
+  // 💾 Guardar cambios
+  const saveChanges = async (winId) => {
+    try {
+      setSavingRow(true);
+      const payload = {
+        width_cm: editedValues.width_cm,
+        height_cm: editedValues.height_cm,
+        window_type_id: editedValues.window_type_id || null,
+        color_id: editedValues.color_id || null, // ✅ corregido aquí
+        glass_color_id: editedValues.glass_color_id || null,
+      };
+      await api.put(`/windows/${winId}`, payload);
+      await fetchOrder();
+      setEditingRow(null);
+      setEditedValues({});
+    } catch (err) {
+      console.error("❌ Error al guardar cambios:", err);
+      alert("No se pudieron guardar los cambios.");
+    } finally {
+      setSavingRow(false);
+    }
+  };
+
 
   if (loading) return <p className="p-6 text-gray-600">Cargando pedido...</p>;
   if (!order) return <p className="p-6 text-red-600">Pedido no encontrado.</p>;
@@ -60,7 +134,7 @@ export default function OrderDetail() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-6">
-      {/* Encabezado */}
+      {/* ENCABEZADO */}
       <div className="max-w-6xl mx-auto mb-6">
         <button
           onClick={() => navigate(-1)}
@@ -86,41 +160,10 @@ export default function OrderDetail() {
               </span>
             </div>
           </div>
-
-          {/* Información general */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-              <FaUser className="text-blue-600" />
-              <div>
-                <p className="text-gray-500">Cliente</p>
-                <p className="font-medium text-gray-800">
-                  {order.clients?.name || "Desconocido"}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-              <FaCalendarAlt className="text-blue-600" />
-              <div>
-                <p className="text-gray-500">Fecha de Creación</p>
-                <p className="font-medium text-gray-800">{creationDate}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-              <FaFileAlt className="text-blue-600" />
-              <div>
-                <p className="text-gray-500">Ventanas</p>
-                <p className="font-medium text-gray-800">
-                  {order.windows?.length || 0} añadidas
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* Tabla de Ventanas */}
+      {/* TABLA */}
       <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="flex justify-between items-center px-6 py-4 border-b">
           <h2 className="text-lg font-semibold text-gray-800">
@@ -138,98 +181,225 @@ export default function OrderDetail() {
             </Button>
           </div>
         </div>
+        {showModal && (
+          <AddWindowModal
+            orderId={Number(order.id)}
+            onClose={() => setShowModal(false)}
+            onSave={(newWindow) => {
+              setOrder((prev) => ({
+                ...prev,
+                windows: [...(prev.windows || []), newWindow],
+              }));
+              setShowModal(false);
+            }}
+          />
+        )}
 
-        {/* Tabla */}
+
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 text-gray-600 uppercase text-xs tracking-wider">
-                <th className="py-3 px-4 text-left">Tipo</th>
-                <th className="py-3 px-4 text-left">Marco (cm)</th>
-                <th className="py-3 px-4 text-left">Hoja (cm)</th>
-                <th className="py-3 px-4 text-left">Vidrio (cm)</th>
-                <th className="py-3 px-4 text-left">Color PVC</th>
-                <th className="py-3 px-4 text-left">Color Vidrio</th>
-                <th className="py-3 px-4 text-center">Cant.</th>
-                <th className="py-3 px-4 text-right">Acciones</th>
+          <table className="min-w-full border-collapse text-sm text-gray-800">
+            <thead className="bg-gray-100 text-gray-700">
+              <tr className="h-12">
+                <th className="text-left px-3 py-2 w-[280px]">TIPO</th>
+                <th className="text-center px-3 py-2">MARCO (CM)</th>
+                <th className="text-center px-3 py-2">HOJA (CM)</th>
+                <th className="text-center px-3 py-2">VIDRIO (CM)</th>
+                <th className="text-center px-3 py-2">COLOR PVC</th>
+                <th className="text-center px-3 py-2">COLOR VIDRIO</th>
+                <th className="text-center px-3 py-2">CANT.</th>
+                <th className="text-center px-3 py-2 w-[120px]">ACCIONES</th>
               </tr>
             </thead>
 
             <tbody>
-              {order.windows?.length > 0 ? (
-                order.windows.map((win) => (
-                  <tr
-                    key={win.id}
-                    className="border-t hover:bg-gray-50 transition-all"
-                  >
-                    <td className="py-2 px-4 font-medium text-gray-700">
-                      {win.window_type?.name || "Desconocido"}
-                    </td>
-                    <td className="py-2 px-4 text-gray-700">
-                      {win.width_cm} × {win.height_cm}
-                    </td>
-                    <td className="py-2 px-4 text-gray-700">
-                      {win.hojaAncho?.toFixed(1)} × {win.hojaAlto?.toFixed(1)}
-                    </td>
-                    <td className="py-2 px-4 text-gray-700">
-                      {win.vidrioAncho?.toFixed(1)} × {win.vidrioAlto?.toFixed(1)}
-                    </td>
-                    <td className="py-2 px-4 text-gray-700">
-                      {win.pvcColor?.name || "—"}
-                    </td>
-                    <td className="py-2 px-4 text-gray-700">
-                      {win.glassColor?.name || "—"}
-                    </td>
-                    <td className="py-2 px-4 text-center text-gray-700">1</td>
-                    <td className="py-2 px-4 text-right space-x-3">
-                      <button
-                        onClick={() => openEdit(win)}
-                        className="text-blue-600 hover:text-blue-800"
+              {(order.windows || []).map((window) => (
+                <tr
+                  key={window.id}
+                  className="h-14 border-b hover:bg-gray-50 transition-all align-middle"
+                >
+                  {editingRow === window.id ? (
+                    <>
+                      {/* TIPO (select) */}
+                      <td
+                        className="px-3 py-2 max-w-[280px] truncate whitespace-nowrap"
+                        title="Tipo de ventana"
                       >
-                        <FaEdit />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(win.id)}
-                        className="text-red-600 hover:text-red-800"
+                        <select
+                          className="w-full border rounded px-2 py-1"
+                          value={editedValues.window_type_id ?? ""}
+                          onChange={(e) =>
+                            setEditedValues((v) => ({
+                              ...v,
+                              window_type_id: e.target.value ? Number(e.target.value) : "",
+                            }))
+                          }
+                        >
+                          <option value="">— Selecciona —</option>
+                          {windowTypes.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {t.name}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+
+                      {/* MARCO (inputs) */}
+                      <td className="text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <input
+                            type="number"
+                            className="w-20 border rounded px-2 text-center"
+                            value={editedValues.width_cm ?? ""}
+                            onChange={(e) =>
+                              setEditedValues((v) => ({ ...v, width_cm: e.target.value }))
+                            }
+                          />
+                          <span>×</span>
+                          <input
+                            type="number"
+                            className="w-20 border rounded px-2 text-center"
+                            value={editedValues.height_cm ?? ""}
+                            onChange={(e) =>
+                              setEditedValues((v) => ({ ...v, height_cm: e.target.value }))
+                            }
+                          />
+                        </div>
+                      </td>
+
+                      {/* HOJA y VIDRIO: se recalculan en backend, los dejamos de solo lectura */}
+                      <td className="text-center">—</td>
+                      <td className="text-center">—</td>
+
+                      {/* COLOR PVC (select) */}
+                      <td className="text-center">
+                        <select
+                          className="border rounded px-2 py-1"
+                          value={editedValues.color_id ?? ""}
+                          onChange={(e) =>
+                            setEditedValues((v) => ({
+                              ...v,
+                              color_id: e.target.value ? Number(e.target.value) : "",
+                            }))
+                          }
+                        >
+                          <option value="">—</option>
+                          {pvcColors.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+
+                      {/* COLOR VIDRIO (select) */}
+                      <td className="text-center">
+                        <select
+                          className="border rounded px-2 py-1"
+                          value={editedValues.glass_color_id ?? ""}
+                          onChange={(e) =>
+                            setEditedValues((v) => ({
+                              ...v,
+                              glass_color_id: e.target.value ? Number(e.target.value) : "",
+                            }))
+                          }
+                        >
+                          <option value="">—</option>
+                          {glassColors.map((g) => (
+                            <option key={g.id} value={g.id}>
+                              {g.name}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+
+                      {/* CANT. (igual) */}
+                      <td className="text-center">{window.quantity || 1}</td>
+
+                      {/* ACCIONES: Guardar / Cancelar */}
+                      <td className="text-center w-[120px]">
+                        <div className="flex justify-center items-center gap-3 text-lg">
+                          <button
+                            onClick={() => saveChanges(window.id)}
+                            disabled={savingRow}
+                            className="text-green-600 hover:text-green-800 disabled:opacity-60"
+                            title="Guardar cambios"
+                            aria-label="Guardar cambios"
+                          >
+                            <FaSave />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingRow(null);
+                              setEditedValues({});
+                            }}
+                            className="text-gray-600 hover:text-gray-800"
+                            title="Cancelar"
+                            aria-label="Cancelar"
+                          >
+                            ✖
+                          </button>
+                        </div>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      {/* Vista normal */}
+                      <td
+                        className="px-3 py-2 max-w-[280px] truncate whitespace-nowrap"
+                        title={window.window_type?.name || "Sin tipo"}
                       >
-                        <FaTrashAlt />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan="8"
-                    className="text-center py-6 text-gray-500 italic"
-                  >
-                    No hay ventanas registradas.
-                  </td>
+                        {window.window_type?.name || "Desconocido"}
+                      </td>
+                      <td className="text-center">
+                        {window.width_cm} × {window.height_cm}
+                      </td>
+                      <td className="text-center">
+                        {window.hojaAncho?.toFixed(1)} × {window.hojaAlto?.toFixed(1)}
+                      </td>
+                      <td className="text-center">
+                        {window.vidrioAncho?.toFixed(1)} × {window.vidrioAlto?.toFixed(1)}
+                      </td>
+                      <td className="text-center">{window.pvcColor?.name || "—"}</td>
+                      <td className="text-center">{window.glassColor?.name || "—"}</td>
+                      <td className="text-center">{window.quantity || 1}</td>
+                      <td className="text-center w-[120px]">
+                        <div className="flex justify-center items-center gap-3 text-lg">
+                          <button
+                            onClick={() => startEdit(window)}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="Editar ventana"
+                            aria-label="Editar ventana"
+                          >
+                            <FaEdit />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(window.id)}
+                            className="text-red-600 hover:text-red-800"
+                            title="Eliminar ventana"
+                            aria-label="Eliminar ventana"
+                          >
+                            <FaTrashAlt />
+                          </button>
+                          <button
+                            onClick={() => handleDuplicate(window.id)}
+                            className="text-gray-600 hover:text-gray-800"
+                            title="Duplicar ventana"
+                            aria-label="Duplicar ventana"
+                          >
+                            <FaClone />
+                          </button>
+                        </div>
+                      </td>
+                    </>
+                  )}
                 </tr>
-              )}
+              ))}
+
             </tbody>
           </table>
+
         </div>
       </div>
-
-      {/* Modal para agregar / editar */}
-      {showModal && (
-        <AddWindowModal
-          orderId={Number(order.id)}
-          editingWindow={editingWindow}
-          onClose={() => {
-            setShowModal(false);
-            setEditingWindow(null);
-          }}
-          onSave={(newWindow) => {
-            // ✅ Actualiza la lista sin recargar
-            setOrder((prev) => ({
-              ...prev,
-              windows: [...(prev.windows || []), newWindow],
-            }));
-          }}
-        />
-      )}
     </div>
   );
 }

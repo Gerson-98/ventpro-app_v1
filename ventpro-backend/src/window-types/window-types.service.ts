@@ -10,7 +10,9 @@ export class WindowTypesService {
   }
 
   findAll() {
-    return this.prisma.window_types.findMany();
+    return this.prisma.window_types.findMany({
+      orderBy: { id: 'asc' },
+    });
   }
 
   findOne(id: number) {
@@ -21,6 +23,17 @@ export class WindowTypesService {
     return this.prisma.window_types.update({
       where: { id },
       data,
+    });
+  }
+
+  async findByPvcColor(colorId: number) {
+    return this.prisma.window_types.findMany({
+      where: {
+        pvcLinks: {
+          some: { pvcColor_id: colorId }, // usa el campo de la tabla puente
+        },
+      },
+      orderBy: { id: 'asc' },
     });
   }
 

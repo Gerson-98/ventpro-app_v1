@@ -23,11 +23,34 @@ model glassColor {
   windows     windows[]
 }
 
-model pvcColor {
-  id          Int       @id @default(autoincrement())
+model window_types {
+  id          Int                     @id @default(autoincrement())
   name        String
   description String?
   windows     windows[]
+  // relación a través de la tabla puente
+  pvcLinks    window_types_pvcColor[]
+}
+
+model pvcColor {
+  id          Int                     @id @default(autoincrement())
+  name        String
+  description String?
+  windows     windows[]
+  // relación a través de la tabla puente
+  typeLinks   window_types_pvcColor[]
+}
+
+model window_types_pvcColor {
+  id             Int @id @default(autoincrement())
+  window_type_id Int
+  pvcColor_id    Int
+
+  window_type window_types @relation(fields: [window_type_id], references: [id])
+  pvcColor    pvcColor     @relation(fields: [pvcColor_id], references: [id])
+
+  @@unique([window_type_id, pvcColor_id], name: "unique_pair")
+  @@map("window_types_pvcColor") // <— mapea al nombre real de tu tabla
 }
 
 model orders {
@@ -60,13 +83,6 @@ model windows {
   glassColor     glassColor?   @relation(fields: [glass_color_id], references: [id])
   order          orders?       @relation(fields: [order_id], references: [id])
   window_type    window_types? @relation(fields: [window_type_id], references: [id])
-}
-
-model window_types {
-  id          Int       @id @default(autoincrement())
-  name        String
-  description String?
-  windows     windows[]
 }
 
 model catalogo_perfiles {

@@ -6,11 +6,18 @@ const Clients = () => {
   const [formData, setFormData] = useState({ name: "", phone: "", address: "", email: "" });
   const [editingId, setEditingId] = useState(null);
 
-  const API_URL = "http://localhost:3000/clients";
+  const API_ROOT = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
+  const BASE = `${API_ROOT}/clients`;
 
   const fetchClients = async () => {
-    const res = await axios.get(API_URL);
-    setClients(res.data);
+    try {
+      const res = await axios.get(BASE);
+      const data = res.data;
+      setClients(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error("❌ Error al obtener clientes:", e);
+      setClients([]);
+    }
   };
 
   useEffect(() => {
@@ -19,24 +26,37 @@ const Clients = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (editingId) {
-      await axios.patch(`${API_URL}/${editingId}`, formData);
-    } else {
-      await axios.post(API_URL, formData);
+    try {
+      if (editingId) {
+        await axios.patch(`${BASE}/${editingId}`, formData);
+      } else {
+        await axios.post(BASE, formData);
+      }
+      setFormData({ name: "", phone: "", address: "", email: "" });
+      setEditingId(null);
+      fetchClients();
+    } catch (e) {
+      console.error("❌ Error al guardar cliente:", e);
     }
-    setFormData({ name: "", phone: "", address: "", email: "" });
-    setEditingId(null);
-    fetchClients();
   };
 
   const handleEdit = (client) => {
-    setFormData(client);
+    setFormData({
+      name: client.name,
+      phone: client.phone || "",
+      address: client.address || "",
+      email: client.email || "",
+    });
     setEditingId(client.id);
   };
 
   const handleDelete = async (id) => {
-    await axios.delete(`${API_URL}/${id}`);
-    fetchClients();
+    try {
+      await axios.delete(`${BASE}/${id}`);
+      fetchClients();
+    } catch (e) {
+      console.error("❌ Error al eliminar cliente:", e);
+    }
   };
 
   return (
