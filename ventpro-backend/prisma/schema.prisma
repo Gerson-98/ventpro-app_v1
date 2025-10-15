@@ -24,12 +24,24 @@ model glassColor {
 }
 
 model window_types {
-  id          Int                     @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   name        String
   description String?
   windows     windows[]
-  // relación a través de la tabla puente
   pvcLinks    window_types_pvcColor[]
+  calculation window_calculations? 
+}
+
+model window_calculations {
+  id             Int      @id @default(autoincrement())
+  window_type_id Int      @unique 
+  hojaDivision   String   
+  hojaMargen     Float    @default(0) 
+  hojaDescuento  Float
+  vidrioDescuento Float
+  createdAt      DateTime @default(now())
+
+  window_type      window_types @relation(fields: [window_type_id], references: [id], onDelete: Cascade)
 }
 
 model pvcColor {
@@ -46,7 +58,7 @@ model window_types_pvcColor {
   window_type_id Int
   pvcColor_id    Int
 
-  window_type window_types @relation(fields: [window_type_id], references: [id])
+  window_type window_types @relation(fields: [window_type_id], references: [id], onDelete: Cascade)
   pvcColor    pvcColor     @relation(fields: [pvcColor_id], references: [id])
 
   @@unique([window_type_id, pvcColor_id], name: "unique_pair")

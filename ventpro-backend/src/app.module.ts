@@ -11,6 +11,7 @@ import { ClientsModule } from './clients/clients.module';
 import { GlassColorsModule } from './glass-colors/glass-colors.module';
 
 import { PrismaService } from './prisma/prisma.service';
+import { WindowCalculationsModule } from './window-calculations/window-calculations.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { PrismaService } from './prisma/prisma.service';
     ProfileTypesModule,
     ClientsModule,
     GlassColorsModule,
+    WindowCalculationsModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

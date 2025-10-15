@@ -9,7 +9,7 @@ import "./index.css";
 import OrderDetail from "./pages/OrderDetail";
 import Clients from "./pages/Clients";
 import Admin from "./pages/Admin/Admin";
-
+import CalculationsManager from './pages/CalculationsManager';
 
 const router = createBrowserRouter([
   {
@@ -22,7 +22,8 @@ const router = createBrowserRouter([
       { path: "/windows", element: <Windows /> },
       { path: "/clients", element: <Clients /> },
       { path: "/admin", element: <Admin /> },
-      
+      { path: "/calculationsmanager", element: <CalculationsManager /> },
+
 
     ],
   },

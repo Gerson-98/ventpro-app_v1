@@ -3,10 +3,17 @@ import { Outlet, Link, useLocation } from "react-router-dom";
 export default function Layout() {
   const location = useLocation();
 
-  const links = [
-    { to: "/", label: "Inicio" },
-    { to: "/orders", label: "Pedidos" },
-    { to: "/admin", label: "Administración" }, // 👈 Nuevo botón
+  // ✨ Estructura de menú mejorada para agrupar enlaces
+  const menuItems = [
+    { type: "link", to: "/", label: "Inicio" },
+    { type: "link", to: "/orders", label: "Pedidos" },
+    {
+      type: "group",
+      label: "Administración", // Título de la sección
+      items: [
+        { to: "/admin", label: "Panel Principal" },
+      ],
+    },
   ];
 
   return (
@@ -17,20 +24,47 @@ export default function Layout() {
           VentPro Panel
         </h1>
 
-        <nav className="flex-1 p-4 space-y-2">
-          {links.map((link) => (
-            <Link
-              key={link.to}
-              to={link.to}
-              className={`block p-2 rounded transition ${
-                location.pathname === link.to
+        <nav className="flex-1 p-4 space-y-1">
+          {/* Lógica de renderizado para el nuevo menú */}
+          {menuItems.map((item, index) => {
+            if (item.type === "group") {
+              return (
+                <div key={index} className="pt-4">
+                  {/* Título de la sección */}
+                  <h2 className="px-2 mb-2 text-xs font-bold text-indigo-200 uppercase tracking-wider">
+                    {item.label}
+                  </h2>
+                  {/* Enlaces del grupo */}
+                  {item.items.map((subLink) => (
+                    <Link
+                      key={subLink.to}
+                      to={subLink.to}
+                      className={`block p-2 rounded transition-colors text-sm pl-4 ${location.pathname === subLink.to
+                        ? "bg-indigo-500 font-semibold"
+                        : "hover:bg-indigo-600"
+                        }`}
+                    >
+                      {subLink.label}
+                    </Link>
+                  ))}
+                </div>
+              );
+            }
+
+            // Renderiza enlaces normales
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`block p-2 rounded transition-colors font-medium ${location.pathname === item.to
                   ? "bg-indigo-500 font-semibold"
                   : "hover:bg-indigo-600"
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
+                  }`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
       </aside>
 

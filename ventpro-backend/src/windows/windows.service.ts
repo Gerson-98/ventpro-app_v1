@@ -1,6 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-
 @Injectable()
 export class WindowsService {
   constructor(private prisma: PrismaService) {}
@@ -42,17 +45,10 @@ export class WindowsService {
       order_id,
     } = data;
 
-    // Obtener el nombre del tipo de ventana (como lo usabas antes)
-    const type = await this.prisma.window_types.findUnique({
-      where: { id: Number(window_type_id) },
-      select: { name: true },
-    });
-    const windowTypeName = type?.name ?? '';
-
-    // ⚖️ Recalcular medidas exactamente como antes
+    // 🔄 MODIFICADO: Llamamos a la nueva función de cálculo
     const { hojaAncho, hojaAlto, vidrioAncho, vidrioAlto } =
-      calculateMeasurements(
-        windowTypeName,
+      await this.calculateWindowMeasurements(
+        Number(window_type_id),
         Number(width_cm),
         Number(height_cm),
       );
@@ -61,7 +57,7 @@ export class WindowsService {
       data: {
         width_cm: Number(width_cm),
         height_cm: Number(height_cm),
-        hojaAncho,
+        hojaAncho, // 👈 Valores del nuevo cálculo
         hojaAlto,
         vidrioAncho,
         vidrioAlto,
@@ -80,47 +76,36 @@ export class WindowsService {
   }
 
   async updateWindow(id: number, data: any) {
-    // ✅ Aceptar ambos formatos camelCase y snake_case
-    const windowTypeId =
-      (data.window_type_id ?? data.windowTypeId)
-        ? Number(data.window_type_id ?? data.windowTypeId)
-        : undefined;
-    const pvcColorId =
-      (data.color_id ?? data.pvcColorId)
-        ? Number(data.color_id ?? data.pvcColorId)
-        : undefined;
-    const glassColorId =
-      (data.glass_color_id ?? data.glassColorId)
-        ? Number(data.glass_color_id ?? data.glassColorId)
-        : undefined;
-
-    // 🔹 Determinar nombre del tipo de ventana
-    let windowTypeName = data.windowTypeName || data.window_type_name || '';
-    if (!windowTypeName && windowTypeId) {
-      const type = await this.prisma.window_types.findUnique({
-        where: { id: windowTypeId },
-        select: { name: true },
-      });
-      windowTypeName = type?.name || '';
+    const existing = await this.prisma.windows.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException(`No se encontró la ventana con id ${id}`);
     }
 
-    // 🔹 Buscar la ventana existente
-    const existing = await this.prisma.windows.findUnique({ where: { id } });
-    if (!existing) throw new Error(`No se encontró la ventana con id ${id}`);
-
+    const windowTypeId = data.window_type_id
+      ? Number(data.window_type_id)
+      : existing.window_type_id;
     const width = data.width_cm ? Number(data.width_cm) : existing.width_cm;
     const height = data.height_cm ? Number(data.height_cm) : existing.height_cm;
+    const pvcColorId = data.color_id ? Number(data.color_id) : undefined;
+    const glassColorId = data.glass_color_id
+      ? Number(data.glass_color_id)
+      : undefined;
 
-    // 🔹 Recalcular hoja y vidrio
+    if (windowTypeId === null) {
+      throw new BadRequestException(
+        'El tipo de ventana (window_type_id) no puede ser nulo para realizar cálculos.',
+      );
+    }
+    // 🔄 MODIFICADO: Recalculamos con la nueva función si cambian las dimensiones o el tipo
     const { hojaAncho, hojaAlto, vidrioAncho, vidrioAlto } =
-      calculateMeasurements(windowTypeName, width, height);
+      await this.calculateWindowMeasurements(windowTypeId, width, height);
 
     return this.prisma.windows.update({
       where: { id },
       data: {
         width_cm: width,
         height_cm: height,
-        hojaAncho,
+        hojaAncho, // 👈 Valores actualizados
         hojaAlto,
         vidrioAncho,
         vidrioAlto,
@@ -184,226 +169,53 @@ export class WindowsService {
   async remove(id: number) {
     return this.prisma.windows.delete({ where: { id } });
   }
-}
 
-function calculateMeasurements(
-  windowType: string,
-  width: number,
-  height: number,
-) {
-  let hojaAncho = 0;
-  let hojaAlto = 0;
-  let vidrioAncho = 0;
-  let vidrioAlto = 0;
+  async calculateWindowMeasurements(
+    windowTypeId: number,
+    width: number,
+    height: number,
+  ) {
+    const calcParams = await this.prisma.window_calculations.findUnique({
+      where: { window_type_id: windowTypeId },
+    });
 
-  switch (windowType.toUpperCase()) {
-    // ======== CORREDIZAS MARCO 45 ========
-    case 'VENTANA CORREDIZA 2 HOJAS 55 CM MARCO 45 CM':
-      hojaAncho = width / 2;
-      hojaAlto = height - 7.2;
-      vidrioAncho = hojaAncho - 8.5;
-      vidrioAlto = hojaAlto - 8.5;
-      break;
+    // Si no hay parámetros, devolvemos las medidas originales sin descuento
+    if (!calcParams) {
+      return {
+        hojaAncho: width,
+        hojaAlto: height,
+        vidrioAncho: width,
+        vidrioAlto: height,
+      };
+    }
 
-    case 'VENTANA CORREDIZA 3 HOJAS 55 CM MARCO 45 CM LATERALES OCULTOS':
-      hojaAncho = (width + 6) / 4;
-      hojaAlto = height - 7.2;
-      vidrioAncho = hojaAncho - 8.5;
-      vidrioAlto = hojaAlto - 8.5;
-      break;
+    let hojaAncho: number;
 
-    case 'VENTANA CORREDIZA 3 HOJAS 55 CM MARCO 45 CM 3 IGUALES':
-      hojaAncho = (width + 6) / 3;
-      hojaAlto = height - 7.2;
-      vidrioAncho = hojaAncho - 8.5;
-      vidrioAlto = hojaAlto - 8.5;
-      break;
+    switch (calcParams.hojaDivision) {
+      case 'Mitad':
+        hojaAncho = (width + calcParams.hojaMargen) / 2;
+        break;
+      case 'Tercio':
+        hojaAncho = (width + calcParams.hojaMargen) / 3;
+        break;
+      case 'Cuarto':
+        hojaAncho = (width + calcParams.hojaMargen) / 4;
+        break;
+      default: // 'Completo' u otros casos
+        hojaAncho = width + calcParams.hojaMargen;
+        break;
+    }
 
-    case 'VENTANA CORREDIZA 4 HOJAS 55 CM MARCO 45 CM':
-      hojaAncho = (width + 6) / 4;
-      hojaAlto = height - 7.2;
-      vidrioAncho = hojaAncho - 8.5;
-      vidrioAlto = hojaAlto - 8.5;
-      break;
+    const hojaAlto = height - calcParams.hojaDescuento;
+    const vidrioAncho = hojaAncho - calcParams.vidrioDescuento;
+    const vidrioAlto = hojaAlto - calcParams.vidrioDescuento;
 
-    // ======== PUERTAS CORREDIZAS MARCO 45 ========
-    case 'PUERTA CORREDIZA 2 HOJAS 66 CM MARCO 45 CM CHAPA AMBAS HOJAS':
-      hojaAncho = (width - 0.5) / 2;
-      hojaAlto = height - 7.2;
-      vidrioAncho = hojaAncho - 8.5;
-      vidrioAlto = hojaAlto - 8.5;
-      break;
-
-    case 'PUERTA CORREDIZA 2 HOJAS 66 CM MARCO 45 CM CHAPA EN 1 HOJA':
-      hojaAncho = width / 2;
-      hojaAlto = height - 7.2;
-      vidrioAncho = hojaAncho - 8.5;
-      vidrioAlto = hojaAlto - 8.5;
-      break;
-
-    case 'PUERTA CORREDIZA 2 HOJAS 66 CM MARCO 45 CM SOLO CERROJO':
-      hojaAncho = (width + 1) / 2;
-      hojaAlto = height - 7.2;
-      vidrioAncho = hojaAncho - 8.5;
-      vidrioAlto = hojaAlto - 8.5;
-      break;
-
-    case 'PUERTA CORREDIZA 3 HOJAS 66 CM MARCO 45 CM LATERALES OCULTOS':
-      hojaAncho = (width + 8) / 4;
-      hojaAlto = height - 7.2;
-      vidrioAncho = hojaAncho - 8.5;
-      vidrioAlto = hojaAlto - 8.5;
-      break;
-
-    case 'PUERTA CORREDIZA 3 HOJAS 66 CM MARCO 45 CM 3 IGUALES':
-      hojaAncho = (width + 8) / 3;
-      hojaAlto = height - 7.2;
-      vidrioAncho = hojaAncho - 8.5;
-      vidrioAlto = hojaAlto - 8.5;
-      break;
-
-    case 'PUERTA CORREDIZA 4 HOJAS 66 CM MARCO 45 CM':
-      hojaAncho = (width + 8) / 4;
-      hojaAlto = height - 7.2;
-      vidrioAncho = hojaAncho - 8.5;
-      vidrioAlto = hojaAlto - 8.5;
-      break;
-
-    // ======== MARCO FIJO Y PUERTAS ========
-    case 'MARCO FIJO':
-      hojaAncho = width;
-      hojaAlto = height;
-      vidrioAncho = hojaAncho - 8.5;
-      vidrioAlto = hojaAlto - 8.5;
-      break;
-
-    case 'PUERTA ANDINA':
-      hojaAncho = width - 8.8;
-      hojaAlto = height - 5.5;
-      vidrioAncho = hojaAncho - 18.7;
-      vidrioAlto = hojaAlto - 18.7;
-      break;
-
-    case 'PUERTA DE LUJO 1 HOJA':
-      hojaAncho = width - 4.5;
-      hojaAlto = height - 4;
-      vidrioAncho = hojaAncho - 16.7;
-      vidrioAlto = hojaAlto - 16.7;
-      break;
-
-    case 'PUERTA DE LUJO 2 HOJAS':
-      hojaAncho = (width - 5) / 2;
-      hojaAlto = height - 4;
-      vidrioAncho = hojaAncho - 16.7;
-      vidrioAlto = hojaAlto - 16.7;
-      break;
-
-    // ======== ABATIBLES Y PROYECTABLE ========
-    case 'VENTANA ABATIBLE DE 1 HOJA':
-      hojaAncho = width - 4.5;
-      hojaAlto = height - 4.5;
-      vidrioAncho = hojaAncho - 16.7;
-      vidrioAlto = hojaAlto - 16.7;
-      break;
-
-    case 'VENTANA ABATIBLE DE 2 HOJAS':
-      hojaAncho = (width - 5) / 2;
-      hojaAlto = height - 4.5;
-      vidrioAncho = hojaAncho - 16.7;
-      vidrioAlto = hojaAlto - 16.7;
-      break;
-
-    case 'VENTANA PROYECTABLE':
-      hojaAncho = width - 6.3;
-      hojaAlto = height - 6.3;
-      vidrioAncho = hojaAncho - 16.7;
-      vidrioAlto = hojaAlto - 16.7;
-      break;
-
-    // ======== CORREDIZAS MARCO 5 ========
-    case 'VENTANA CORREDIZA 2 HOJAS 55 CM MARCO 5 CM':
-      hojaAncho = (width - 1) / 2;
-      hojaAlto = height - 8.2;
-      vidrioAncho = hojaAncho - 8.5;
-      vidrioAlto = hojaAlto - 8.5;
-      break;
-
-    case 'VENTANA CORREDIZA 3 HOJAS 55 CM MARCO 5 CM LATERALES OCULTOS':
-      hojaAncho = (width + 5) / 4;
-      hojaAlto = height - 8.2;
-      vidrioAncho = hojaAncho - 8.5;
-      vidrioAlto = hojaAlto - 8.5;
-      break;
-
-    case 'VENTANA CORREDIZA 3 HOJAS 55 CM MARCO 5 CM 3 IGUALES':
-      hojaAncho = (width + 5) / 3;
-      hojaAlto = height - 8.2;
-      vidrioAncho = hojaAncho - 8.5;
-      vidrioAlto = hojaAlto - 8.5;
-      break;
-
-    case 'VENTANA CORREDIZA 4 HOJAS 55 CM MARCO 5 CM':
-      hojaAncho = (width + 5) / 4;
-      hojaAlto = height - 8.2;
-      vidrioAncho = hojaAncho - 8.5;
-      vidrioAlto = hojaAlto - 8.5;
-      break;
-
-    // ======== PUERTAS CORREDIZAS MARCO 5 ========
-    case 'PUERTA CORREDIZA 2 HOJAS 66 CM MARCO 5 CM CHAPA AMBAS HOJAS':
-      hojaAncho = (width - 1) / 2;
-      hojaAlto = height - 8.2;
-      vidrioAncho = hojaAncho - 10.5;
-      vidrioAlto = hojaAlto - 10.5;
-      break;
-
-    case 'PUERTA CORREDIZA 2 HOJAS 66 CM MARCO 5 CM CHAPA EN 1 HOJA':
-      hojaAncho = (width + 0.5) / 2;
-      hojaAlto = height - 8.2;
-      vidrioAncho = hojaAncho - 10.5;
-      vidrioAlto = hojaAlto - 10.5;
-      break;
-
-    case 'PUERTA CORREDIZA 2 HOJAS 66 CM MARCO 5 CM SOLO CERROJO':
-      hojaAncho = (width - 0.5) / 2;
-      hojaAlto = height - 8.2;
-      vidrioAncho = hojaAncho - 10.5;
-      vidrioAlto = hojaAlto - 10.5;
-      break;
-
-    case 'PUERTA CORREDIZA 3 HOJAS 66 CM MARCO 5 CM LATERALES OCULTOS':
-      hojaAncho = (width + 7) / 4;
-      hojaAlto = height - 8.2;
-      vidrioAncho = hojaAncho - 10.5;
-      vidrioAlto = hojaAlto - 10.5;
-      break;
-
-    case 'PUERTA CORREDIZA 3 HOJAS 66 CM MARCO 5 CM 3 IGUALES':
-      hojaAncho = (width + 8) / 3;
-      hojaAlto = height - 8.2;
-      vidrioAncho = hojaAncho - 10.5;
-      vidrioAlto = hojaAlto - 10.5;
-      break;
-
-    case 'PUERTA CORREDIZA 4 HOJAS 66 CM MARCO 5 CM':
-      hojaAncho = (width + 8) / 4;
-      hojaAlto = height - 8.2;
-      vidrioAncho = hojaAncho - 10.5;
-      vidrioAlto = hojaAlto - 10.5;
-      break;
-
-    // ======== DEFAULT ========
-    default:
-      hojaAncho = width;
-      hojaAlto = height;
-      vidrioAncho = width;
-      vidrioAlto = height;
+    // Redondeo a 1 decimal
+    return {
+      hojaAncho: Number(hojaAncho.toFixed(1)),
+      hojaAlto: Number(hojaAlto.toFixed(1)),
+      vidrioAncho: Number(vidrioAncho.toFixed(1)),
+      vidrioAlto: Number(vidrioAlto.toFixed(1)),
+    };
   }
-
-  return {
-    hojaAncho: Number(hojaAncho.toFixed(1)),
-    hojaAlto: Number(hojaAlto.toFixed(1)),
-    vidrioAncho: Number(vidrioAncho.toFixed(1)),
-    vidrioAlto: Number(vidrioAlto.toFixed(1)),
-  };
 }

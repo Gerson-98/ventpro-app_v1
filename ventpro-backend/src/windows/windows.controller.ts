@@ -45,4 +45,20 @@ export class WindowsController {
   async duplicateWindow(@Param('id') id: number) {
     return this.windowsService.duplicateWindow(Number(id));
   }
+
+  @Post('calculate-preview')
+  async calculatePreview(
+    @Body()
+    data: {
+      window_type_id: number;
+      width_cm: number;
+      height_cm: number;
+    },
+  ) {
+    return this.windowsService.calculateWindowMeasurements(
+      data.window_type_id,
+      data.width_cm,
+      data.height_cm,
+    );
+  }
 }

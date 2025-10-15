@@ -14,7 +14,14 @@ export class WindowTypesController {
   constructor(private readonly windowTypesService: WindowTypesService) {}
 
   @Post()
-  create(@Body() data: { name: string; description?: string }) {
+  create(
+    @Body()
+    data: {
+      name: string;
+      description?: string;
+      pvcColorIds?: number[];
+    },
+  ) {
     return this.windowTypesService.create(data);
   }
 
