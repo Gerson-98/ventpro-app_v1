@@ -107,54 +107,209 @@ export default function AddWindowModal({ orderId, onClose, onSave }) {
     let vidrioAlto = 0;
 
     switch (windowType.toUpperCase()) {
-      case "VENTANA CORREDIZA 2 HOJAS 55 CM MARCO 45 CM":
+      // ======== CORREDIZAS MARCO 45 ========
+      case 'VENTANA CORREDIZA 2 HOJAS 55 CM MARCO 45 CM':
         hojaAncho = width / 2;
         hojaAlto = height - 7.2;
         vidrioAncho = hojaAncho - 8.5;
         vidrioAlto = hojaAlto - 8.5;
         break;
-      case "VENTANA CORREDIZA 3 HOJAS 55 CM MARCO 45 CM LATERALES OCULTOS":
+
+      case 'VENTANA CORREDIZA 3 HOJAS 55 CM MARCO 45 CM LATERALES OCULTOS':
         hojaAncho = (width + 6) / 4;
         hojaAlto = height - 7.2;
         vidrioAncho = hojaAncho - 8.5;
         vidrioAlto = hojaAlto - 8.5;
         break;
-      case "VENTANA CORREDIZA 3 HOJAS 55 CM MARCO 45 CM 3 IGUALES":
+
+      case 'VENTANA CORREDIZA 3 HOJAS 55 CM MARCO 45 CM 3 IGUALES':
         hojaAncho = (width + 6) / 3;
         hojaAlto = height - 7.2;
         vidrioAncho = hojaAncho - 8.5;
         vidrioAlto = hojaAlto - 8.5;
         break;
-      case "VENTANA CORREDIZA 4 HOJAS 55 CM MARCO 45 CM":
+
+      case 'VENTANA CORREDIZA 4 HOJAS 55 CM MARCO 45 CM':
         hojaAncho = (width + 6) / 4;
         hojaAlto = height - 7.2;
         vidrioAncho = hojaAncho - 8.5;
         vidrioAlto = hojaAlto - 8.5;
         break;
-      case "MARCO FIJO":
+
+      // ======== PUERTAS CORREDIZAS MARCO 45 ========
+      case 'PUERTA CORREDIZA 2 HOJAS 66 CM MARCO 45 CM CHAPA AMBAS HOJAS':
+        hojaAncho = (width - 0.5) / 2;
+        hojaAlto = height - 7.2;
+        vidrioAncho = hojaAncho - 8.5;
+        vidrioAlto = hojaAlto - 8.5;
+        break;
+
+      case 'PUERTA CORREDIZA 2 HOJAS 66 CM MARCO 45 CM CHAPA EN 1 HOJA':
+        hojaAncho = width / 2;
+        hojaAlto = height - 7.2;
+        vidrioAncho = hojaAncho - 8.5;
+        vidrioAlto = hojaAlto - 8.5;
+        break;
+
+      case 'PUERTA CORREDIZA 2 HOJAS 66 CM MARCO 45 CM SOLO CERROJO':
+        hojaAncho = (width + 1) / 2;
+        hojaAlto = height - 7.2;
+        vidrioAncho = hojaAncho - 8.5;
+        vidrioAlto = hojaAlto - 8.5;
+        break;
+
+      case 'PUERTA CORREDIZA 3 HOJAS 66 CM MARCO 45 CM LATERALES OCULTOS':
+        hojaAncho = (width + 8) / 4;
+        hojaAlto = height - 7.2;
+        vidrioAncho = hojaAncho - 8.5;
+        vidrioAlto = hojaAlto - 8.5;
+        break;
+
+      case 'PUERTA CORREDIZA 3 HOJAS 66 CM MARCO 45 CM 3 IGUALES':
+        hojaAncho = (width + 8) / 3;
+        hojaAlto = height - 7.2;
+        vidrioAncho = hojaAncho - 8.5;
+        vidrioAlto = hojaAlto - 8.5;
+        break;
+
+      case 'PUERTA CORREDIZA 4 HOJAS 66 CM MARCO 45 CM':
+        hojaAncho = (width + 8) / 4;
+        hojaAlto = height - 7.2;
+        vidrioAncho = hojaAncho - 8.5;
+        vidrioAlto = hojaAlto - 8.5;
+        break;
+
+      // ======== MARCO FIJO Y PUERTAS ========
+      case 'MARCO FIJO':
         hojaAncho = width;
         hojaAlto = height;
         vidrioAncho = hojaAncho - 8.5;
         vidrioAlto = hojaAlto - 8.5;
         break;
-      case "VENTANA PROYECTABLE":
-        hojaAncho = width - 6.3;
-        hojaAlto = height - 6.3;
+
+      case 'PUERTA ANDINA':
+        hojaAncho = width - 8.8;
+        hojaAlto = height - 5.5;
+        vidrioAncho = hojaAncho - 18.7;
+        vidrioAlto = hojaAlto - 18.7;
+        break;
+
+      case 'PUERTA DE LUJO 1 HOJA':
+        hojaAncho = width - 4.5;
+        hojaAlto = height - 4;
         vidrioAncho = hojaAncho - 16.7;
         vidrioAlto = hojaAlto - 16.7;
         break;
-      case "VENTANA ABATIBLE DE 1 HOJA":
+
+      case 'PUERTA DE LUJO 2 HOJAS':
+        hojaAncho = (width - 5) / 2;
+        hojaAlto = height - 4;
+        vidrioAncho = hojaAncho - 16.7;
+        vidrioAlto = hojaAlto - 16.7;
+        break;
+
+      // ======== ABATIBLES Y PROYECTABLE ========
+      case 'VENTANA ABATIBLE DE 1 HOJA':
         hojaAncho = width - 4.5;
         hojaAlto = height - 4.5;
         vidrioAncho = hojaAncho - 16.7;
         vidrioAlto = hojaAlto - 16.7;
         break;
+
+      case 'VENTANA ABATIBLE DE 2 HOJAS':
+        hojaAncho = (width - 5) / 2;
+        hojaAlto = height - 4.5;
+        vidrioAncho = hojaAncho - 16.7;
+        vidrioAlto = hojaAlto - 16.7;
+        break;
+
+      case 'VENTANA PROYECTABLE':
+        hojaAncho = width - 6.3;
+        hojaAlto = height - 6.3;
+        vidrioAncho = hojaAncho - 16.7;
+        vidrioAlto = hojaAlto - 16.7;
+        break;
+
+      // ======== CORREDIZAS MARCO 5 ========
+      case 'VENTANA CORREDIZA 2 HOJAS 55 CM MARCO 5 CM':
+        hojaAncho = (width - 1) / 2;
+        hojaAlto = height - 8.2;
+        vidrioAncho = hojaAncho - 8.5;
+        vidrioAlto = hojaAlto - 8.5;
+        break;
+
+      case 'VENTANA CORREDIZA 3 HOJAS 55 CM MARCO 5 CM LATERALES OCULTOS':
+        hojaAncho = (width + 5) / 4;
+        hojaAlto = height - 8.2;
+        vidrioAncho = hojaAncho - 8.5;
+        vidrioAlto = hojaAlto - 8.5;
+        break;
+
+      case 'VENTANA CORREDIZA 3 HOJAS 55 CM MARCO 5 CM 3 IGUALES':
+        hojaAncho = (width + 5) / 3;
+        hojaAlto = height - 8.2;
+        vidrioAncho = hojaAncho - 8.5;
+        vidrioAlto = hojaAlto - 8.5;
+        break;
+
+      case 'VENTANA CORREDIZA 4 HOJAS 55 CM MARCO 5 CM':
+        hojaAncho = (width + 5) / 4;
+        hojaAlto = height - 8.2;
+        vidrioAncho = hojaAncho - 8.5;
+        vidrioAlto = hojaAlto - 8.5;
+        break;
+
+      // ======== PUERTAS CORREDIZAS MARCO 5 ========
+      case 'PUERTA CORREDIZA 2 HOJAS 66 CM MARCO 5 CM CHAPA AMBAS HOJAS':
+        hojaAncho = (width - 1) / 2;
+        hojaAlto = height - 8.2;
+        vidrioAncho = hojaAncho - 10.5;
+        vidrioAlto = hojaAlto - 10.5;
+        break;
+
+      case 'PUERTA CORREDIZA 2 HOJAS 66 CM MARCO 5 CM CHAPA EN 1 HOJA':
+        hojaAncho = (width + 0.5) / 2;
+        hojaAlto = height - 8.2;
+        vidrioAncho = hojaAncho - 10.5;
+        vidrioAlto = hojaAlto - 10.5;
+        break;
+
+      case 'PUERTA CORREDIZA 2 HOJAS 66 CM MARCO 5 CM SOLO CERROJO':
+        hojaAncho = (width - 0.5) / 2;
+        hojaAlto = height - 8.2;
+        vidrioAncho = hojaAncho - 10.5;
+        vidrioAlto = hojaAlto - 10.5;
+        break;
+
+      case 'PUERTA CORREDIZA 3 HOJAS 66 CM MARCO 5 CM LATERALES OCULTOS':
+        hojaAncho = (width + 7) / 4;
+        hojaAlto = height - 8.2;
+        vidrioAncho = hojaAncho - 10.5;
+        vidrioAlto = hojaAlto - 10.5;
+        break;
+
+      case 'PUERTA CORREDIZA 3 HOJAS 66 CM MARCO 5 CM 3 IGUALES':
+        hojaAncho = (width + 8) / 3;
+        hojaAlto = height - 8.2;
+        vidrioAncho = hojaAncho - 10.5;
+        vidrioAlto = hojaAlto - 10.5;
+        break;
+
+      case 'PUERTA CORREDIZA 4 HOJAS 66 CM MARCO 5 CM':
+        hojaAncho = (width + 8) / 4;
+        hojaAlto = height - 8.2;
+        vidrioAncho = hojaAncho - 10.5;
+        vidrioAlto = hojaAlto - 10.5;
+        break;
+
+      // ======== DEFAULT ========
       default:
         hojaAncho = width;
         hojaAlto = height;
         vidrioAncho = width;
         vidrioAlto = height;
     }
+
 
     return {
       hojaAncho: Number(hojaAncho.toFixed(1)),
