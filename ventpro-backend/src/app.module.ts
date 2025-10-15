@@ -12,6 +12,7 @@ import { GlassColorsModule } from './glass-colors/glass-colors.module';
 
 import { PrismaService } from './prisma/prisma.service';
 import { WindowCalculationsModule } from './window-calculations/window-calculations.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { WindowCalculationsModule } from './window-calculations/window-calculati
     ClientsModule,
     GlassColorsModule,
     WindowCalculationsModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

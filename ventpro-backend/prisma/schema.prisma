@@ -97,19 +97,27 @@ model windows {
   window_type    window_types? @relation(fields: [window_type_id], references: [id])
 }
 
+// En tu archivo prisma/schema.prisma, añade este nuevo modelo
+
 model catalogo_perfiles {
-  id                Int       @id @default(autoincrement())
-  tipo_ventana      String    @db.VarChar(255)
-  perfil_marco      String?   @db.VarChar(255)
-  perfil_hoja       String?   @db.VarChar(255)
-  perfil_mosquitero String?   @db.VarChar(255)
-  perfil_batiente   String?   @db.VarChar(255)
-  perfil_tapajamba  String?   @db.VarChar(255)
+  id                Int      @id @default(autoincrement())
+  tipo_ventana      String   @unique // Hacemos que sea único para buscar fácilmente
+  perfil_marco      String?
+  perfil_hoja       String?
+  perfil_mosquitero String?
+  perfil_batiente   String?
+  perfil_tapajamba  String?
   regla_marco       String?
   regla_hoja        String?
   regla_mosquitero  String?
   regla_batiente    String?
   regla_tapajamba   String?
-  createdat         DateTime? @default(now()) @db.Timestamp(6)
-  updatedat         DateTime? @default(now()) @db.Timestamp(6)
+  cant_vidrios      Int?
+  cerrojos          Int?
+  rodos             Int?
+  rodo_mosquitero   Int?
+  bisagras          String?
+  chapa             String?
+  demas_accesorios  String?
+  accesorios        String?
 }

@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "@/services/api";
 import { Button } from "@/components/ui/button";
-import { FaArrowLeft, FaCalendarAlt, FaFileAlt, FaUser } from "react-icons/fa";
-import { FaChartBar, FaPlus, FaTrashAlt, FaEdit, FaClone, FaSave } from "react-icons/fa";
+import { FaArrowLeft, FaFileAlt, FaChartBar, FaPlus, FaTrashAlt, FaEdit, FaClone, FaSave } from "react-icons/fa";
 import AddWindowModal from "@/components/AddWindowModal";
+import ProfilesReportModal from "@/components/ProfilesReportModal";
 
 export default function OrderDetail() {
   const { id } = useParams();
@@ -16,11 +16,17 @@ export default function OrderDetail() {
   const [editedValues, setEditedValues] = useState({});
   const [savingRow, setSavingRow] = useState(false);
 
+  // Estados para el reporte
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportData, setReportData] = useState([]);
+  const [isReportLoading, setIsReportLoading] = useState(false);
+
+  // Estados para los catálogos de edición
   const [windowTypes, setWindowTypes] = useState([]);
   const [pvcColors, setPvcColors] = useState([]);
   const [glassColors, setGlassColors] = useState([]);
 
-  // 🔹 Cargar catálogos (tipos, colores)
+  // Cargar catálogos (tipos, colores)
   useEffect(() => {
     const fetchCatalogs = async () => {
       try {
@@ -39,7 +45,7 @@ export default function OrderDetail() {
     fetchCatalogs();
   }, []);
 
-  // 🔹 Obtener pedido
+  // Obtener pedido
   const fetchOrder = async () => {
     try {
       setLoading(true);
@@ -56,7 +62,23 @@ export default function OrderDetail() {
     fetchOrder();
   }, [id]);
 
-  // 🔹 Eliminar ventana
+  // ✨ FUNCIÓN PARA GENERAR EL REPORTE
+  const handleGenerateReport = async () => {
+    setIsReportLoading(true);
+    setShowReportModal(true); // Abre el modal para mostrar "Cargando..."
+    try {
+      const response = await api.get(`/reports/order/${id}/profiles`);
+      setReportData(response.data);
+    } catch (error) {
+      console.error("Error al generar el reporte:", error);
+      alert("No se pudo generar el reporte. Inténtalo de nuevo.");
+      setShowReportModal(false); // Cierra el modal si hay un error
+    } finally {
+      setIsReportLoading(false);
+    }
+  };
+
+  // Eliminar ventana
   const handleDelete = async (winId) => {
     if (!confirm("¿Seguro que deseas eliminar esta ventana?")) return;
     try {
@@ -68,7 +90,7 @@ export default function OrderDetail() {
     }
   };
 
-  // 🔁 Duplicar ventana
+  // Duplicar ventana
   const handleDuplicate = async (winId) => {
     try {
       const res = await api.post(`/windows/${winId}/duplicate`);
@@ -83,23 +105,19 @@ export default function OrderDetail() {
     }
   };
 
-  // ✏️ Editar ventana
-  // ✏️ Activar modo edición
+  // Activar modo edición
   const startEdit = (win) => {
     setEditingRow(win.id);
     setEditedValues({
       width_cm: win.width_cm,
       height_cm: win.height_cm,
-      // 👇 Aquí está el cambio importante
       window_type_id: win.window_type?.id || "",
       color_id: win.pvcColor?.id || "",
       glass_color_id: win.glassColor?.id || "",
     });
   };
 
-
-  // 💾 Guardar cambios
-  // 💾 Guardar cambios
+  // Guardar cambios
   const saveChanges = async (winId) => {
     try {
       setSavingRow(true);
@@ -107,7 +125,7 @@ export default function OrderDetail() {
         width_cm: editedValues.width_cm,
         height_cm: editedValues.height_cm,
         window_type_id: editedValues.window_type_id || null,
-        color_id: editedValues.color_id || null, // ✅ corregido aquí
+        color_id: editedValues.color_id || null,
         glass_color_id: editedValues.glass_color_id || null,
       };
       await api.put(`/windows/${winId}`, payload);
@@ -122,15 +140,8 @@ export default function OrderDetail() {
     }
   };
 
-
   if (loading) return <p className="p-6 text-gray-600">Cargando pedido...</p>;
   if (!order) return <p className="p-6 text-red-600">Pedido no encontrado.</p>;
-
-  const creationDate = new Date(order.createdAt || Date.now()).toLocaleDateString("es-GT", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-6">
@@ -142,16 +153,13 @@ export default function OrderDetail() {
         >
           <FaArrowLeft /> Volver a Pedidos
         </button>
-
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center gap-4 mb-4">
             <div className="bg-blue-100 p-3 rounded-xl text-blue-600">
               <FaFileAlt size={24} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">
-                Pedido #{order.id}
-              </h1>
+              <h1 className="text-2xl font-bold text-gray-800">Pedido #{order.id}</h1>
               <p className="text-gray-600 text-sm">{order.project}</p>
             </div>
             <div className="ml-auto">
@@ -166,9 +174,7 @@ export default function OrderDetail() {
       {/* TABLA */}
       <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="flex justify-between items-center px-6 py-4 border-b">
-          <h2 className="text-lg font-semibold text-gray-800">
-            Ventanas del Pedido
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-800">Ventanas del Pedido</h2>
           <div className="flex gap-2">
             <Button
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
@@ -176,11 +182,17 @@ export default function OrderDetail() {
             >
               <FaPlus /> Añadir Ventana
             </Button>
-            <Button className="flex items-center gap-2 bg-green-600 hover:bg-green-700">
+
+            {/* ✨ BOTÓN DE REPORTE CONECTADO */}
+            <Button
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+              onClick={handleGenerateReport}
+            >
               <FaChartBar /> Generar Reporte
             </Button>
           </div>
         </div>
+
         {showModal && (
           <AddWindowModal
             orderId={Number(order.id)}
@@ -195,9 +207,9 @@ export default function OrderDetail() {
           />
         )}
 
-
         <div className="overflow-x-auto">
           <table className="min-w-full border-collapse text-sm text-gray-800">
+            {/* ... Tu thead de la tabla se mantiene igual ... */}
             <thead className="bg-gray-100 text-gray-700">
               <tr className="h-12">
                 <th className="text-left px-3 py-2 w-[280px]">TIPO</th>
@@ -211,195 +223,96 @@ export default function OrderDetail() {
               </tr>
             </thead>
 
+            {/* ... Tu tbody de la tabla se mantiene igual ... */}
             <tbody>
               {(order.windows || []).map((window) => (
-                <tr
-                  key={window.id}
-                  className="h-14 border-b hover:bg-gray-50 transition-all align-middle"
-                >
+                <tr key={window.id} className="h-14 border-b hover:bg-gray-50 transition-all align-middle">
                   {editingRow === window.id ? (
                     <>
-                      {/* TIPO (select) */}
-                      <td
-                        className="px-3 py-2 max-w-[280px] truncate whitespace-nowrap"
-                        title="Tipo de ventana"
-                      >
+                      {/* MODO EDICIÓN */}
+                      <td className="px-3 py-2 max-w-[280px] truncate whitespace-nowrap" title="Tipo de ventana">
                         <select
                           className="w-full border rounded px-2 py-1"
                           value={editedValues.window_type_id ?? ""}
-                          onChange={(e) =>
-                            setEditedValues((v) => ({
-                              ...v,
-                              window_type_id: e.target.value ? Number(e.target.value) : "",
-                            }))
-                          }
+                          onChange={(e) => setEditedValues((v) => ({ ...v, window_type_id: e.target.value ? Number(e.target.value) : "" }))}
                         >
                           <option value="">— Selecciona —</option>
-                          {windowTypes.map((t) => (
-                            <option key={t.id} value={t.id}>
-                              {t.name}
-                            </option>
-                          ))}
+                          {windowTypes.map((t) => (<option key={t.id} value={t.id}>{t.name}</option>))}
                         </select>
                       </td>
-
-                      {/* MARCO (inputs) */}
                       <td className="text-center">
                         <div className="flex items-center justify-center gap-2">
-                          <input
-                            type="number"
-                            className="w-20 border rounded px-2 text-center"
-                            value={editedValues.width_cm ?? ""}
-                            onChange={(e) =>
-                              setEditedValues((v) => ({ ...v, width_cm: e.target.value }))
-                            }
-                          />
+                          <input type="number" className="w-20 border rounded px-2 text-center" value={editedValues.width_cm ?? ""} onChange={(e) => setEditedValues((v) => ({ ...v, width_cm: e.target.value }))} />
                           <span>×</span>
-                          <input
-                            type="number"
-                            className="w-20 border rounded px-2 text-center"
-                            value={editedValues.height_cm ?? ""}
-                            onChange={(e) =>
-                              setEditedValues((v) => ({ ...v, height_cm: e.target.value }))
-                            }
-                          />
+                          <input type="number" className="w-20 border rounded px-2 text-center" value={editedValues.height_cm ?? ""} onChange={(e) => setEditedValues((v) => ({ ...v, height_cm: e.target.value }))} />
                         </div>
                       </td>
-
-                      {/* HOJA y VIDRIO: se recalculan en backend, los dejamos de solo lectura */}
                       <td className="text-center">—</td>
                       <td className="text-center">—</td>
-
-                      {/* COLOR PVC (select) */}
                       <td className="text-center">
                         <select
                           className="border rounded px-2 py-1"
                           value={editedValues.color_id ?? ""}
-                          onChange={(e) =>
-                            setEditedValues((v) => ({
-                              ...v,
-                              color_id: e.target.value ? Number(e.target.value) : "",
-                            }))
-                          }
+                          onChange={(e) => setEditedValues((v) => ({ ...v, color_id: e.target.value ? Number(e.target.value) : "" }))}
                         >
                           <option value="">—</option>
-                          {pvcColors.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.name}
-                            </option>
-                          ))}
+                          {pvcColors.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
                         </select>
                       </td>
-
-                      {/* COLOR VIDRIO (select) */}
                       <td className="text-center">
                         <select
                           className="border rounded px-2 py-1"
                           value={editedValues.glass_color_id ?? ""}
-                          onChange={(e) =>
-                            setEditedValues((v) => ({
-                              ...v,
-                              glass_color_id: e.target.value ? Number(e.target.value) : "",
-                            }))
-                          }
+                          onChange={(e) => setEditedValues((v) => ({ ...v, glass_color_id: e.target.value ? Number(e.target.value) : "" }))}
                         >
                           <option value="">—</option>
-                          {glassColors.map((g) => (
-                            <option key={g.id} value={g.id}>
-                              {g.name}
-                            </option>
-                          ))}
+                          {glassColors.map((g) => (<option key={g.id} value={g.id}>{g.name}</option>))}
                         </select>
                       </td>
-
-                      {/* CANT. (igual) */}
                       <td className="text-center">{window.quantity || 1}</td>
-
-                      {/* ACCIONES: Guardar / Cancelar */}
                       <td className="text-center w-[120px]">
                         <div className="flex justify-center items-center gap-3 text-lg">
-                          <button
-                            onClick={() => saveChanges(window.id)}
-                            disabled={savingRow}
-                            className="text-green-600 hover:text-green-800 disabled:opacity-60"
-                            title="Guardar cambios"
-                            aria-label="Guardar cambios"
-                          >
-                            <FaSave />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setEditingRow(null);
-                              setEditedValues({});
-                            }}
-                            className="text-gray-600 hover:text-gray-800"
-                            title="Cancelar"
-                            aria-label="Cancelar"
-                          >
-                            ✖
-                          </button>
+                          <button onClick={() => saveChanges(window.id)} disabled={savingRow} className="text-green-600 hover:text-green-800 disabled:opacity-60" title="Guardar cambios"><FaSave /></button>
+                          <button onClick={() => { setEditingRow(null); setEditedValues({}); }} className="text-gray-600 hover:text-gray-800" title="Cancelar">✖</button>
                         </div>
                       </td>
                     </>
                   ) : (
                     <>
-                      {/* Vista normal */}
-                      <td
-                        className="px-3 py-2 max-w-[280px] truncate whitespace-nowrap"
-                        title={window.window_type?.name || "Sin tipo"}
-                      >
+                      {/* VISTA NORMAL */}
+                      <td className="px-3 py-2 max-w-[280px] truncate whitespace-nowrap" title={window.window_type?.name || "Sin tipo"}>
                         {window.window_type?.name || "Desconocido"}
                       </td>
-                      <td className="text-center">
-                        {window.width_cm} × {window.height_cm}
-                      </td>
-                      <td className="text-center">
-                        {window.hojaAncho?.toFixed(1)} × {window.hojaAlto?.toFixed(1)}
-                      </td>
-                      <td className="text-center">
-                        {window.vidrioAncho?.toFixed(1)} × {window.vidrioAlto?.toFixed(1)}
-                      </td>
+                      <td className="text-center">{window.width_cm} × {window.height_cm}</td>
+                      <td className="text-center">{window.hojaAncho?.toFixed(1)} × {window.hojaAlto?.toFixed(1)}</td>
+                      <td className="text-center">{window.vidrioAncho?.toFixed(1)} × {window.vidrioAlto?.toFixed(1)}</td>
                       <td className="text-center">{window.pvcColor?.name || "—"}</td>
                       <td className="text-center">{window.glassColor?.name || "—"}</td>
                       <td className="text-center">{window.quantity || 1}</td>
                       <td className="text-center w-[120px]">
                         <div className="flex justify-center items-center gap-3 text-lg">
-                          <button
-                            onClick={() => startEdit(window)}
-                            className="text-blue-600 hover:text-blue-800"
-                            title="Editar ventana"
-                            aria-label="Editar ventana"
-                          >
-                            <FaEdit />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(window.id)}
-                            className="text-red-600 hover:text-red-800"
-                            title="Eliminar ventana"
-                            aria-label="Eliminar ventana"
-                          >
-                            <FaTrashAlt />
-                          </button>
-                          <button
-                            onClick={() => handleDuplicate(window.id)}
-                            className="text-gray-600 hover:text-gray-800"
-                            title="Duplicar ventana"
-                            aria-label="Duplicar ventana"
-                          >
-                            <FaClone />
-                          </button>
+                          <button onClick={() => startEdit(window)} className="text-blue-600 hover:text-blue-800" title="Editar ventana"><FaEdit /></button>
+                          <button onClick={() => handleDelete(window.id)} className="text-red-600 hover:text-red-800" title="Eliminar ventana"><FaTrashAlt /></button>
+                          <button onClick={() => handleDuplicate(window.id)} className="text-gray-600 hover:text-gray-800" title="Duplicar ventana"><FaClone /></button>
                         </div>
                       </td>
                     </>
                   )}
                 </tr>
               ))}
-
             </tbody>
           </table>
-
         </div>
       </div>
+
+      {/* ✨ MODAL DEL REPORTE RENDERIZADO AQUÍ */}
+      {showReportModal && (
+        <ProfilesReportModal
+          isLoading={isReportLoading}
+          reportData={reportData}
+          onClose={() => setShowReportModal(false)}
+        />
+      )}
     </div>
   );
 }

@@ -93,19 +93,25 @@ CREATE TABLE "windows" (
 -- CreateTable
 CREATE TABLE "catalogo_perfiles" (
     "id" SERIAL NOT NULL,
-    "tipo_ventana" VARCHAR(255) NOT NULL,
-    "perfil_marco" VARCHAR(255),
-    "perfil_hoja" VARCHAR(255),
-    "perfil_mosquitero" VARCHAR(255),
-    "perfil_batiente" VARCHAR(255),
-    "perfil_tapajamba" VARCHAR(255),
+    "tipo_ventana" TEXT NOT NULL,
+    "perfil_marco" TEXT,
+    "perfil_hoja" TEXT,
+    "perfil_mosquitero" TEXT,
+    "perfil_batiente" TEXT,
+    "perfil_tapajamba" TEXT,
     "regla_marco" TEXT,
     "regla_hoja" TEXT,
     "regla_mosquitero" TEXT,
     "regla_batiente" TEXT,
     "regla_tapajamba" TEXT,
-    "createdat" TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP,
-    "updatedat" TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP,
+    "cant_vidrios" INTEGER,
+    "cerrojos" INTEGER,
+    "rodos" INTEGER,
+    "rodo_mosquitero" INTEGER,
+    "bisagras" TEXT,
+    "chapa" TEXT,
+    "demas_accesorios" TEXT,
+    "accesorios" TEXT,
 
     CONSTRAINT "catalogo_perfiles_pkey" PRIMARY KEY ("id")
 );
@@ -116,11 +122,14 @@ CREATE UNIQUE INDEX "window_calculations_window_type_id_key" ON "window_calculat
 -- CreateIndex
 CREATE UNIQUE INDEX "window_types_pvcColor_window_type_id_pvcColor_id_key" ON "window_types_pvcColor"("window_type_id", "pvcColor_id");
 
--- AddForeignKey
-ALTER TABLE "window_calculations" ADD CONSTRAINT "window_calculations_window_type_id_fkey" FOREIGN KEY ("window_type_id") REFERENCES "window_types"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+-- CreateIndex
+CREATE UNIQUE INDEX "catalogo_perfiles_tipo_ventana_key" ON "catalogo_perfiles"("tipo_ventana");
 
 -- AddForeignKey
-ALTER TABLE "window_types_pvcColor" ADD CONSTRAINT "window_types_pvcColor_window_type_id_fkey" FOREIGN KEY ("window_type_id") REFERENCES "window_types"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "window_calculations" ADD CONSTRAINT "window_calculations_window_type_id_fkey" FOREIGN KEY ("window_type_id") REFERENCES "window_types"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "window_types_pvcColor" ADD CONSTRAINT "window_types_pvcColor_window_type_id_fkey" FOREIGN KEY ("window_type_id") REFERENCES "window_types"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "window_types_pvcColor" ADD CONSTRAINT "window_types_pvcColor_pvcColor_id_fkey" FOREIGN KEY ("pvcColor_id") REFERENCES "pvcColor"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
