@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "@/services/api";
 import { Button } from "@/components/ui/button";
-import { FaArrowLeft, FaFileAlt, FaChartBar, FaPlus, FaTrashAlt, FaEdit, FaClone, FaSave } from "react-icons/fa";
+import { FaArrowLeft, FaFileAlt, FaChartBar, FaPlus, FaTrashAlt, FaEdit, FaClone, FaSave, FaMagic } from "react-icons/fa";
 import AddWindowModal from "@/components/AddWindowModal";
 import ProfilesReportModal from "@/components/ProfilesReportModal";
+import CutOptimizationModal from "@/components/CutOptimizationModal";
 
 export default function OrderDetail() {
   const { id } = useParams();
@@ -16,17 +17,22 @@ export default function OrderDetail() {
   const [editedValues, setEditedValues] = useState({});
   const [savingRow, setSavingRow] = useState(false);
 
-  // Estados para el reporte
+  // Estados para el reporte de resumen
   const [showReportModal, setShowReportModal] = useState(false);
-  const [reportData, setReportData] = useState([]);
+  const [reportData, setReportData] = useState({});
   const [isReportLoading, setIsReportLoading] = useState(false);
+
+  // Estados para el modal de optimización
+  const [showOptimizationModal, setShowOptimizationModal] = useState(false);
+  const [optimizationData, setOptimizationData] = useState({});
+  const [isOptimizationLoading, setIsOptimizationLoading] = useState(false);
 
   // Estados para los catálogos de edición
   const [windowTypes, setWindowTypes] = useState([]);
   const [pvcColors, setPvcColors] = useState([]);
   const [glassColors, setGlassColors] = useState([]);
 
-  // Cargar catálogos (tipos, colores)
+  // Cargar catálogos
   useEffect(() => {
     const fetchCatalogs = async () => {
       try {
@@ -62,23 +68,36 @@ export default function OrderDetail() {
     fetchOrder();
   }, [id]);
 
-  // ✨ FUNCIÓN PARA GENERAR EL REPORTE
   const handleGenerateReport = async () => {
     setIsReportLoading(true);
-    setShowReportModal(true); // Abre el modal para mostrar "Cargando..."
+    setShowReportModal(true);
     try {
       const response = await api.get(`/reports/order/${id}/profiles`);
       setReportData(response.data);
     } catch (error) {
       console.error("Error al generar el reporte:", error);
       alert("No se pudo generar el reporte. Inténtalo de nuevo.");
-      setShowReportModal(false); // Cierra el modal si hay un error
+      setShowReportModal(false);
     } finally {
       setIsReportLoading(false);
     }
   };
 
-  // Eliminar ventana
+  const handleOptimizeCuts = async () => {
+    setIsOptimizationLoading(true);
+    setShowOptimizationModal(true);
+    try {
+      const response = await api.get(`/reports/order/${id}/optimize-cuts`);
+      setOptimizationData(response.data);
+    } catch (error) {
+      console.error("Error al optimizar los cortes:", error);
+      alert("No se pudo generar el plan de corte. Inténtalo de nuevo.");
+      setShowOptimizationModal(false);
+    } finally {
+      setIsOptimizationLoading(false);
+    }
+  };
+
   const handleDelete = async (winId) => {
     if (!confirm("¿Seguro que deseas eliminar esta ventana?")) return;
     try {
@@ -90,22 +109,17 @@ export default function OrderDetail() {
     }
   };
 
-  // Duplicar ventana
   const handleDuplicate = async (winId) => {
     try {
       const res = await api.post(`/windows/${winId}/duplicate`);
-      const newWindow = res.data;
-      setOrder((prev) => ({
-        ...prev,
-        windows: [...(prev.windows || []), newWindow],
-      }));
+      // En lugar de actualizar localmente, volvemos a cargar todo para asegurar consistencia
+      await fetchOrder();
     } catch (err) {
       console.error("❌ Error al duplicar ventana:", err);
       alert("No se pudo duplicar la ventana.");
     }
   };
 
-  // Activar modo edición
   const startEdit = (win) => {
     setEditingRow(win.id);
     setEditedValues({
@@ -117,16 +131,15 @@ export default function OrderDetail() {
     });
   };
 
-  // Guardar cambios
   const saveChanges = async (winId) => {
     try {
       setSavingRow(true);
       const payload = {
-        width_cm: editedValues.width_cm,
-        height_cm: editedValues.height_cm,
-        window_type_id: editedValues.window_type_id || null,
-        color_id: editedValues.color_id || null,
-        glass_color_id: editedValues.glass_color_id || null,
+        width_cm: parseFloat(editedValues.width_cm),
+        height_cm: parseFloat(editedValues.height_cm),
+        window_type_id: editedValues.window_type_id ? Number(editedValues.window_type_id) : null,
+        color_id: editedValues.color_id ? Number(editedValues.color_id) : null,
+        glass_color_id: editedValues.glass_color_id ? Number(editedValues.glass_color_id) : null,
       };
       await api.put(`/windows/${winId}`, payload);
       await fetchOrder();
@@ -154,7 +167,7 @@ export default function OrderDetail() {
           <FaArrowLeft /> Volver a Pedidos
         </button>
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center gap-4 mb-4">
+          <div className="flex items-center gap-4">
             <div className="bg-blue-100 p-3 rounded-xl text-blue-600">
               <FaFileAlt size={24} />
             </div>
@@ -176,19 +189,14 @@ export default function OrderDetail() {
         <div className="flex justify-between items-center px-6 py-4 border-b">
           <h2 className="text-lg font-semibold text-gray-800">Ventanas del Pedido</h2>
           <div className="flex gap-2">
-            <Button
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
-              onClick={() => setShowModal(true)}
-            >
+            <Button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700" onClick={() => setShowModal(true)}>
               <FaPlus /> Añadir Ventana
             </Button>
-
-            {/* ✨ BOTÓN DE REPORTE CONECTADO */}
-            <Button
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-              onClick={handleGenerateReport}
-            >
+            <Button className="flex items-center gap-2 bg-green-600 hover:bg-green-700" onClick={handleGenerateReport}>
               <FaChartBar /> Generar Reporte
+            </Button>
+            <Button className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700" onClick={handleOptimizeCuts}>
+              <FaMagic /> Optimizar Cortes
             </Button>
           </div>
         </div>
@@ -197,19 +205,15 @@ export default function OrderDetail() {
           <AddWindowModal
             orderId={Number(order.id)}
             onClose={() => setShowModal(false)}
-            onSave={(newWindow) => {
-              setOrder((prev) => ({
-                ...prev,
-                windows: [...(prev.windows || []), newWindow],
-              }));
+            onSave={async () => {
               setShowModal(false);
+              await fetchOrder();
             }}
           />
         )}
 
         <div className="overflow-x-auto">
           <table className="min-w-full border-collapse text-sm text-gray-800">
-            {/* ... Tu thead de la tabla se mantiene igual ... */}
             <thead className="bg-gray-100 text-gray-700">
               <tr className="h-12">
                 <th className="text-left px-3 py-2 w-[280px]">TIPO</th>
@@ -223,7 +227,7 @@ export default function OrderDetail() {
               </tr>
             </thead>
 
-            {/* ... Tu tbody de la tabla se mantiene igual ... */}
+            {/* ✨ AQUÍ ESTÁ LA PARTE RESTAURADA QUE DIBUJA LAS FILAS ✨ */}
             <tbody>
               {(order.windows || []).map((window) => (
                 <tr key={window.id} className="h-14 border-b hover:bg-gray-50 transition-all align-middle">
@@ -305,12 +309,19 @@ export default function OrderDetail() {
         </div>
       </div>
 
-      {/* ✨ MODAL DEL REPORTE RENDERIZADO AQUÍ */}
+      {/* MODALES */}
       {showReportModal && (
         <ProfilesReportModal
           isLoading={isReportLoading}
           reportData={reportData}
           onClose={() => setShowReportModal(false)}
+        />
+      )}
+      {showOptimizationModal && (
+        <CutOptimizationModal
+          isLoading={isOptimizationLoading}
+          optimizationData={optimizationData}
+          onClose={() => setShowOptimizationModal(false)}
         />
       )}
     </div>

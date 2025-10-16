@@ -13,4 +13,12 @@ export class ReportsController {
   ) {
     return this.reportsService.generateProfilesReport(orderId);
   }
+  // ✨ AÑADE ESTE NUEVO ENDPOINT PARA EL OPTIMIZADOR ✨
+  @Get('order/:orderId/optimize-cuts')
+  generateCutOptimizationReport(
+    @Param('orderId', ParseIntPipe) orderId: number,
+  ) {
+    // Llamará a una nueva función en nuestro servicio
+    return this.reportsService.generateCutOptimizationReport(orderId);
+  }
 }
