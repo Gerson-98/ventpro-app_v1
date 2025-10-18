@@ -5,7 +5,12 @@ import { PrismaService } from '../prisma/prisma.service';
 export class ClientsService {
   constructor(private prisma: PrismaService) {}
 
-  create(data: { name: string; phone?: string; email?: string; address?: string }) {
+  create(data: {
+    name: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+  }) {
     return this.prisma.clients.create({ data });
   }
 
@@ -22,7 +27,10 @@ export class ClientsService {
     });
   }
 
-  update(id: number, data: { name?: string; phone?: string; email?: string; address?: string }) {
+  update(
+    id: number,
+    data: { name?: string; phone?: string; email?: string; address?: string },
+  ) {
     return this.prisma.clients.update({
       where: { id },
       data,

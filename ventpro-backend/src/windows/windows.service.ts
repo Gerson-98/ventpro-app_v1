@@ -39,6 +39,7 @@ export class WindowsService {
     const {
       width_cm,
       height_cm,
+      price,
       window_type_id,
       color_id,
       glass_color_id,
@@ -57,6 +58,7 @@ export class WindowsService {
       data: {
         width_cm: Number(width_cm),
         height_cm: Number(height_cm),
+        price: 0,
         hojaAncho, // 👈 Valores del nuevo cálculo
         hojaAlto,
         vidrioAncho,
@@ -105,6 +107,7 @@ export class WindowsService {
       data: {
         width_cm: width,
         height_cm: height,
+        price: 0,
         hojaAncho, // 👈 Valores actualizados
         hojaAlto,
         vidrioAncho,
@@ -148,6 +151,7 @@ export class WindowsService {
         order_id: rest.order_id, // 👈 tu campo real
         width_cm: rest.width_cm,
         height_cm: rest.height_cm,
+        price: rest.price,
         window_type_id: rest.window_type_id, // 👈 tu campo real
         color_id: rest.color_id, // 👈 tu campo real
         glass_color_id: rest.glass_color_id, // 👈 tu campo real

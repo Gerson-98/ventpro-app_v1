@@ -8,79 +8,86 @@ datasource db {
 }
 
 model clients {
-  id      Int      @id @default(autoincrement())
-  name    String
-  phone   String?
-  email   String?
-  address String?
-  orders  orders[]
+  id         Int         @id @default(autoincrement())
+  name       String
+  phone      String?
+  email      String?
+  address    String?
+  orders     orders[]
+  quotations Quotation[]
 }
 
 model glassColor {
-  id          Int       @id @default(autoincrement())
-  name        String
-  description String?
-  windows     windows[]
+  id                Int               @id @default(autoincrement())
+  name              String
+  description       String?
+  windows           windows[]
+  // ✨ AÑADE ESTA LÍNEA (El camino de regreso)
+  quotation_windows QuotationWindow[]
 }
 
 model window_types {
-  id          Int      @id @default(autoincrement())
-  name        String
-  description String?
-  windows     windows[]
-  pvcLinks    window_types_pvcColor[]
-  calculation window_calculations? 
+  id                 Int                     @id @default(autoincrement())
+  name               String
+  description        String?
+  windows            windows[]
+  pvcLinks           window_types_pvcColor[]
+  calculation        window_calculations?
+  // ✨ AÑADE ESTA LÍNEA (El camino de regreso)
+  quotation_windows  QuotationWindow[]
 }
 
 model window_calculations {
   id             Int      @id @default(autoincrement())
-  window_type_id Int      @unique 
-  hojaDivision   String   
-  hojaMargen     Float    @default(0) 
+  window_type_id Int      @unique
+  hojaDivision   String
+  hojaMargen     Float    @default(0)
   hojaDescuento  Float
   vidrioDescuento Float
   createdAt      DateTime @default(now())
-
-  window_type      window_types @relation(fields: [window_type_id], references: [id], onDelete: Cascade)
+  window_type    window_types @relation(fields: [window_type_id], references: [id], onDelete: Cascade)
 }
 
 model pvcColor {
-  id          Int                     @id @default(autoincrement())
-  name        String
-  description String?
-  windows     windows[]
-  // relación a través de la tabla puente
-  typeLinks   window_types_pvcColor[]
+  id                Int                       @id @default(autoincrement())
+  name              String
+  description       String?
+  windows           windows[]
+  typeLinks         window_types_pvcColor[]
+  // ✨ AÑADE ESTA LÍNEA (El camino de regreso)
+  quotation_windows QuotationWindow[]
 }
 
 model window_types_pvcColor {
-  id             Int @id @default(autoincrement())
+  id             Int          @id @default(autoincrement())
   window_type_id Int
   pvcColor_id    Int
-
-  window_type window_types @relation(fields: [window_type_id], references: [id], onDelete: Cascade)
-  pvcColor    pvcColor     @relation(fields: [pvcColor_id], references: [id])
+  window_type    window_types @relation(fields: [window_type_id], references: [id], onDelete: Cascade)
+  pvcColor       pvcColor     @relation(fields: [pvcColor_id], references: [id])
 
   @@unique([window_type_id, pvcColor_id], name: "unique_pair")
-  @@map("window_types_pvcColor") // <— mapea al nombre real de tu tabla
+  @@map("window_types_pvcColor")
 }
 
 model orders {
-  id        Int       @id @default(autoincrement())
-  project   String
-  status    String?
-  total     Float?
-  clientId  Int?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime?
-  clients   clients?  @relation(fields: [clientId], references: [id])
-  windows   windows[]
+  id                       Int        @id @default(autoincrement())
+  project                  String
+  status                   String?
+  total                    Float?
+  clientId                 Int?
+  createdAt                DateTime   @default(now())
+  updatedAt                DateTime?
+  generatedFromQuotationId Int?       @unique
+  generatedFromQuotation   Quotation? @relation(fields: [generatedFromQuotationId], references: [id])
+  clients                  clients?   @relation(fields: [clientId], references: [id])
+  windows                  windows[]
 }
 
 model windows {
   id             Int           @id @default(autoincrement())
   width_cm       Float
   height_cm      Float
+  price          Float
   hojaAncho      Float?
   hojaAlto       Float?
   vidrioAncho    Float?
@@ -97,11 +104,9 @@ model windows {
   window_type    window_types? @relation(fields: [window_type_id], references: [id])
 }
 
-// En tu archivo prisma/schema.prisma, añade este nuevo modelo
-
 model catalogo_perfiles {
-  id                Int      @id @default(autoincrement())
-  tipo_ventana      String   @unique // Hacemos que sea único para buscar fácilmente
+  id                Int     @id @default(autoincrement())
+  tipo_ventana      String  @unique
   perfil_marco      String?
   perfil_hoja       String?
   perfil_mosquitero String?
@@ -120,4 +125,33 @@ model catalogo_perfiles {
   chapa             String?
   demas_accesorios  String?
   accesorios        String?
+}
+
+model Quotation {
+  id                Int               @id @default(autoincrement())
+  project           String
+  status            String            @default("en proceso")
+  price_per_m2      Float
+  total_price       Float?
+  clientId          Int?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  client            clients?          @relation(fields: [clientId], references: [id])
+  quotation_windows QuotationWindow[]
+  generatedOrder    orders?
+}
+
+model QuotationWindow {
+  id             Int          @id @default(autoincrement())
+  width_cm       Float
+  height_cm      Float
+  price          Float
+  quotation_id   Int
+  window_type_id Int
+  color_id       Int
+  glass_color_id Int
+  quotation      Quotation    @relation(fields: [quotation_id], references: [id], onDelete: Cascade)
+  window_type    window_types @relation(fields: [window_type_id], references: [id])
+  pvcColor       pvcColor     @relation(fields: [color_id], references: [id])
+  glassColor     glassColor   @relation(fields: [glass_color_id], references: [id])
 }

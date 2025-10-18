@@ -10,6 +10,8 @@ import OrderDetail from "./pages/OrderDetail";
 import Clients from "./pages/Clients";
 import Admin from "./pages/Admin/Admin";
 import CalculationsManager from './pages/CalculationsManager';
+import Quotations from './pages/Quotations';
+import QuotationDetail from './pages/QuotationDetail';
 
 const router = createBrowserRouter([
   {
@@ -23,6 +25,8 @@ const router = createBrowserRouter([
       { path: "/clients", element: <Clients /> },
       { path: "/admin", element: <Admin /> },
       { path: "/calculationsmanager", element: <CalculationsManager /> },
+      { path: "/quotations", element: <Quotations /> },
+      { path: "/quotations/:id", element: <QuotationDetail /> },
 
 
     ],

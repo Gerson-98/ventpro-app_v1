@@ -181,9 +181,14 @@ export class ReportsService {
     const profilesCatalog = await this.prisma.catalogo_perfiles.findMany();
     const catalogMap = new Map(profilesCatalog.map((p) => [p.tipo_ventana, p]));
 
-    const detailedCutList = new Map<
+    // ✨ 1. SEPARAMOS LAS LISTAS DE CORTE EN DOS GRUPOS
+    const individualCutList = new Map<
       string,
       { color: string; cuts: number[] }
+    >();
+    const combinableCutList = new Map<
+      string,
+      { color: string; hojaCuts: number[]; mosquiteroCuts: number[] }
     >();
 
     for (const window of order.windows) {
@@ -191,6 +196,7 @@ export class ReportsService {
       const catalogEntry = catalogMap.get(window.window_type.name);
       if (!catalogEntry) continue;
 
+      const isSlidingType = this.isSlidingWindowType(window.window_type.name);
       const profiles = [
         {
           type: 'MARCO',
@@ -220,54 +226,188 @@ export class ReportsService {
       ];
 
       for (const profile of profiles) {
-        if (profile.name && profile.rule) {
-          const key = `${window.pvcColor.name}|${profile.name}`;
-          if (!detailedCutList.has(key)) {
-            detailedCutList.set(key, { color: window.pvcColor.name, cuts: [] });
+        if (!profile.name || !profile.rule) continue;
+
+        const individualCuts = this.getIndividualCuts(
+          profile.rule,
+          profile.type,
+          window,
+        );
+
+        // Si es corrediza y es Hoja o Mosquitero, va al grupo combinable
+        if (
+          isSlidingType &&
+          (profile.type === 'HOJA' || profile.type === 'MOSQUITERO')
+        ) {
+          const hojaProfileName = catalogEntry.perfil_hoja;
+          const mosquiteroProfileName = catalogEntry.perfil_mosquitero;
+          // Usamos una clave combinada para agrupar por par de perfiles
+          const key = `${window.pvcColor.name}|${hojaProfileName}|${mosquiteroProfileName}`;
+
+          if (!combinableCutList.has(key)) {
+            combinableCutList.set(key, {
+              color: window.pvcColor.name,
+              hojaCuts: [],
+              mosquiteroCuts: [],
+            });
           }
-          const individualCuts = this.getIndividualCuts(
-            profile.rule,
-            profile.type,
-            window,
-          );
-          detailedCutList.get(key)!.cuts.push(...individualCuts);
+
+          if (profile.type === 'HOJA') {
+            combinableCutList.get(key)!.hojaCuts.push(...individualCuts);
+          } else {
+            // MOSQUITERO
+            combinableCutList.get(key)!.mosquiteroCuts.push(...individualCuts);
+          }
+        } else {
+          // De lo contrario, va al grupo individual
+          const key = `${window.pvcColor.name}|${profile.name}`;
+          if (!individualCutList.has(key)) {
+            individualCutList.set(key, {
+              color: window.pvcColor.name,
+              cuts: [],
+            });
+          }
+          individualCutList.get(key)!.cuts.push(...individualCuts);
         }
       }
     }
 
     const optimizationResult = {};
 
-    for (const [key, value] of detailedCutList.entries()) {
+    // ✨ 2. OPTIMIZAR EL GRUPO INDIVIDUAL (LÓGICA ANTIGUA)
+    for (const [key, value] of individualCutList.entries()) {
       const [color, profileName] = key.split('|');
-
-      // ✨ ¡AQUÍ ESTÁ LA MAGIA! Llamamos a nuestro propio optimizador
       const optimizedBins = this.optimizeCuts(value.cuts, BAR_LENGTH);
+      this.formatAndAddResult(
+        optimizationResult,
+        profileName,
+        color,
+        optimizedBins,
+        BAR_LENGTH,
+      );
+    }
 
-      if (!optimizationResult[profileName]) {
-        optimizationResult[profileName] = [];
+    // ✨ 3. OPTIMIZAR EL GRUPO COMBINABLE (NUEVA LÓGICA)
+    for (const [key, value] of combinableCutList.entries()) {
+      const [color, hojaProfileName, mosquiteroProfileName] = key.split('|');
+
+      const { optimizedHojaBins, optimizedMosquiteroBins } =
+        this.optimizeCombinedCuts(
+          value.hojaCuts,
+          value.mosquiteroCuts,
+          BAR_LENGTH,
+        );
+
+      if (optimizedHojaBins.length > 0) {
+        this.formatAndAddResult(
+          optimizationResult,
+          hojaProfileName,
+          color,
+          optimizedHojaBins,
+          BAR_LENGTH,
+        );
       }
-
-      optimizationResult[profileName].push({
-        color: color,
-        totalBars: optimizedBins.length,
-        bars: optimizedBins.map((bar, index) => {
-          const totalUsed = bar.reduce((sum, cut) => sum + cut, 0);
-          return {
-            barNumber: index + 1,
-            cuts: bar,
-            totalUsed: Number(totalUsed.toFixed(1)),
-            waste: Number((BAR_LENGTH - totalUsed).toFixed(1)),
-            efficiency: Number(((totalUsed / BAR_LENGTH) * 100).toFixed(2)),
-          };
-        }),
-      });
+      if (optimizedMosquiteroBins.length > 0) {
+        this.formatAndAddResult(
+          optimizationResult,
+          mosquiteroProfileName,
+          color,
+          optimizedMosquiteroBins,
+          BAR_LENGTH,
+        );
+      }
     }
 
     return optimizationResult;
   }
 
-  // --- FUNCIONES AYUDANTES ---
+  private isSlidingWindowType(typeName: string): boolean {
+    return typeName.toUpperCase().includes('CORREDIZA');
+  }
 
+  // ✨ NUEVO: Ayudante para formatear la salida y evitar código repetido
+  private formatAndAddResult(
+    resultObj: any,
+    profileName: string,
+    color: string,
+    bins: number[][],
+    barLength: number,
+  ) {
+    if (!resultObj[profileName]) {
+      resultObj[profileName] = [];
+    }
+    resultObj[profileName].push({
+      color: color,
+      totalBars: bins.length,
+      bars: bins.map((bar, index) => {
+        const totalUsed = bar.reduce((sum, cut) => sum + cut, 0);
+        return {
+          barNumber: index + 1,
+          cuts: bar.sort((a, b) => b - a), // Ordenar cortes por barra para el operario
+          totalUsed: Number(totalUsed.toFixed(1)),
+          waste: Number((barLength - totalUsed).toFixed(1)),
+          efficiency: Number(((totalUsed / barLength) * 100).toFixed(2)),
+        };
+      }),
+    });
+  }
+
+  // ✨ NUEVO: El cerebro de la optimización combinada
+  private optimizeCombinedCuts(
+    hojaCuts: number[],
+    mosquiteroCuts: number[],
+    barLength: number,
+  ) {
+    const cutFrequencies = new Map<
+      number,
+      { hoja: number; mosquitero: number }
+    >();
+
+    // Contar frecuencias de cada longitud de corte
+    hojaCuts.forEach((cut) => {
+      const freq = cutFrequencies.get(cut) || { hoja: 0, mosquitero: 0 };
+      freq.hoja++;
+      cutFrequencies.set(cut, freq);
+    });
+    mosquiteroCuts.forEach((cut) => {
+      const freq = cutFrequencies.get(cut) || { hoja: 0, mosquitero: 0 };
+      freq.mosquitero++;
+      cutFrequencies.set(cut, freq);
+    });
+
+    const finalHojaCuts: number[] = [];
+    const finalMosquiteroCuts: number[] = [];
+
+    // Crear lotes de producción (2 hojas + 1 mosquitero)
+    for (const [cutLength, freqs] of cutFrequencies.entries()) {
+      const numTriples = Math.min(Math.floor(freqs.hoja / 2), freqs.mosquitero);
+
+      if (numTriples > 0) {
+        for (let i = 0; i < numTriples; i++) {
+          finalHojaCuts.push(cutLength, cutLength);
+          finalMosquiteroCuts.push(cutLength);
+        }
+        freqs.hoja -= numTriples * 2;
+        freqs.mosquitero -= numTriples;
+      }
+    }
+
+    // Añadir los cortes restantes que no pudieron ser triples
+    for (const [cutLength, freqs] of cutFrequencies.entries()) {
+      for (let i = 0; i < freqs.hoja; i++) finalHojaCuts.push(cutLength);
+      for (let i = 0; i < freqs.mosquitero; i++)
+        finalMosquiteroCuts.push(cutLength);
+    }
+
+    // Optimizar el empaquetado en barras para cada perfil
+    const optimizedHojaBins = this.optimizeCuts(finalHojaCuts, barLength);
+    const optimizedMosquiteroBins = this.optimizeCuts(
+      finalMosquiteroCuts,
+      barLength,
+    );
+
+    return { optimizedHojaBins, optimizedMosquiteroBins };
+  }
   // ✨ NUEVO: El algoritmo de optimización First Fit Decreasing
   private optimizeCuts(cuts: number[], barLength: number): number[][] {
     // 1. Ordenar los cortes de mayor a menor

@@ -13,10 +13,11 @@ import { GlassColorsModule } from './glass-colors/glass-colors.module';
 import { PrismaService } from './prisma/prisma.service';
 import { WindowCalculationsModule } from './window-calculations/window-calculations.module';
 import { ReportsModule } from './reports/reports.module';
+import { QuotationsModule } from './quotations/quotations.module';
 
 @Module({
   imports: [
-    OrdersModule,       // ✅ Incluye el módulo de pedidos
+    OrdersModule, // ✅ Incluye el módulo de pedidos
     WindowsModule,
     WindowTypesModule,
     PvcColorsModule,
@@ -25,6 +26,7 @@ import { ReportsModule } from './reports/reports.module';
     GlassColorsModule,
     WindowCalculationsModule,
     ReportsModule,
+    QuotationsModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

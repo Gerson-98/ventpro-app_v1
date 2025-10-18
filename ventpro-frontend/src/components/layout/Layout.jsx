@@ -7,6 +7,7 @@ export default function Layout() {
   const menuItems = [
     { type: "link", to: "/", label: "Inicio" },
     { type: "link", to: "/orders", label: "Pedidos" },
+    { type: "link", to: "/quotations", label: "Cotizaciones" },
     {
       type: "group",
       label: "Administración", // Título de la sección
