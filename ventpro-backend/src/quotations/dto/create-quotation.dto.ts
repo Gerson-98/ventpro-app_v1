@@ -3,6 +3,7 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsDateString,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -19,6 +20,10 @@ class QuotationWindowDto {
   @IsNumber()
   @IsNotEmpty()
   height_m: number; // Recibimos en metros desde el frontend
+
+  @IsOptional()
+  @IsNumber()
+  price_per_m2?: number;
 
   @IsNumber()
   @IsNotEmpty()
@@ -51,4 +56,14 @@ export class CreateQuotationDto {
   @ValidateNested({ each: true }) // Le dice a NestJS que valide cada objeto de la lista
   @Type(() => QuotationWindowDto) // Le dice a NestJS qué "forma" tienen los objetos de la lista
   windows: QuotationWindowDto[];
+}
+
+export class ConfirmQuotationDto {
+  @IsDateString()
+  @IsNotEmpty()
+  installationStartDate: string;
+
+  @IsDateString()
+  @IsNotEmpty()
+  installationEndDate: string;
 }

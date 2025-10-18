@@ -2,10 +2,28 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "@/services/api";
 import { Button } from "@/components/ui/button";
-import { FaArrowLeft, FaFileAlt, FaChartBar, FaPlus, FaTrashAlt, FaEdit, FaClone, FaSave, FaMagic } from "react-icons/fa";
+import { FaArrowLeft, FaFileAlt, FaChartBar, FaPlus, FaTrashAlt, FaEdit, FaClone, FaSave, FaMagic, FaCalendarAlt } from "react-icons/fa";
 import AddWindowModal from "@/components/AddWindowModal";
 import ProfilesReportModal from "@/components/ProfilesReportModal";
 import CutOptimizationModal from "@/components/CutOptimizationModal";
+import RescheduleOrderModal from "@/components/RescheduleOrderModal";
+
+const ORDER_STATUSES = [
+  { value: 'en proceso', label: 'En Proceso' },
+  { value: 'en fabricacion', label: 'En Fabricación' },
+  { value: 'listo para instalar', label: 'Listo para Instalar' },
+  { value: 'en ruta', label: 'En Ruta' },
+  { value: 'completado', label: 'Completado' },
+];
+
+const STATUS_STYLES = {
+  'en proceso': 'bg-blue-100 text-blue-800 border-blue-300',
+  'en fabricacion': 'bg-orange-100 text-orange-800 border-orange-300',
+  'listo para instalar': 'bg-purple-100 text-purple-800 border-purple-300',
+  'en ruta': 'bg-cyan-100 text-cyan-800 border-cyan-300',
+  'completado': 'bg-green-100 text-green-800 border-green-300',
+  'default': 'bg-gray-100 text-gray-800 border-gray-300',
+};
 
 export default function OrderDetail() {
   const { id } = useParams();
@@ -17,6 +35,8 @@ export default function OrderDetail() {
   const [editedValues, setEditedValues] = useState({});
   const [savingRow, setSavingRow] = useState(false);
 
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
   // Estados para el reporte de resumen
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportData, setReportData] = useState({});
@@ -26,6 +46,8 @@ export default function OrderDetail() {
   const [showOptimizationModal, setShowOptimizationModal] = useState(false);
   const [optimizationData, setOptimizationData] = useState({});
   const [isOptimizationLoading, setIsOptimizationLoading] = useState(false);
+
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
 
   // Estados para los catálogos de edición
   const [windowTypes, setWindowTypes] = useState([]);
@@ -67,6 +89,23 @@ export default function OrderDetail() {
   useEffect(() => {
     fetchOrder();
   }, [id]);
+
+  const formatCurrency = (amount) => `Q ${Number(amount || 0).toFixed(2)}`;
+
+  const formatInstallationDate = (start, end) => {
+    if (!start || !end) return "No agendado";
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+
+    const formattedStart = startDate.toLocaleDateString('es-GT', options);
+    const formattedEnd = endDate.toLocaleDateString('es-GT', options);
+
+    if (formattedStart === formattedEnd) {
+      return formattedStart;
+    }
+    return `${formattedStart} - ${formattedEnd}`;
+  };
 
   const handleGenerateReport = async () => {
     setIsReportLoading(true);
@@ -153,32 +192,77 @@ export default function OrderDetail() {
     }
   };
 
+  // ✨ 3. Nueva función para manejar el cambio de estado
+  const handleStatusChange = async (e) => {
+    const newStatus = e.target.value;
+    setIsUpdatingStatus(true);
+    try {
+      await api.patch(`/orders/${id}/status`, { status: newStatus });
+      // Actualiza el estado localmente para una respuesta visual inmediata
+      setOrder(prevOrder => ({ ...prevOrder, status: newStatus }));
+    } catch (error) {
+      console.error("❌ Error al actualizar el estado:", error);
+      alert("No se pudo actualizar el estado.");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
   if (loading) return <p className="p-6 text-gray-600">Cargando pedido...</p>;
   if (!order) return <p className="p-6 text-red-600">Pedido no encontrado.</p>;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-6">
-      {/* ENCABEZADO */}
       <div className="max-w-6xl mx-auto mb-6">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium mb-4"
-        >
+        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium mb-4">
           <FaArrowLeft /> Volver a Pedidos
         </button>
+
+        {/* ✨ REEMPLAZA TODO EL <div className="bg-white..."> DEL ENCABEZADO CON ESTA NUEVA ESTRUCTURA ✨ */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center gap-4">
-            <div className="bg-blue-100 p-3 rounded-xl text-blue-600">
-              <FaFileAlt size={24} />
+          <div className="flex justify-between items-start">
+            {/* Columna Izquierda: Información Principal */}
+            <div className="flex items-center gap-4">
+              <div className="bg-blue-100 p-3 rounded-xl text-blue-600">
+                <FaFileAlt size={24} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800">{order.project}</h1>
+                <p className="text-gray-600">Cliente: {order.clients?.name || "N/A"}</p>
+                <p className="text-lg font-semibold text-blue-700 mt-1">{formatCurrency(order.total)}</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">Pedido #{order.id}</h1>
-              <p className="text-gray-600 text-sm">{order.project}</p>
-            </div>
-            <div className="ml-auto">
-              <span className="px-3 py-1 text-sm bg-gray-100 border rounded-full text-gray-600">
-                {order.status || "Borrador"}
-              </span>
+
+            <div className="flex flex-col items-end gap-3">
+              {/* ✨ 2. Aplica las clases de estilo dinámicas al select */}
+              <select
+                value={order.status || ''}
+                onChange={handleStatusChange}
+                disabled={isUpdatingStatus}
+                className={`px-3 py-1 text-sm border rounded-full font-medium appearance-none disabled:opacity-50 transition-colors
+                  ${STATUS_STYLES[order.status] || STATUS_STYLES.default}
+                `}
+              >
+                {ORDER_STATUSES.map(statusOption => (
+                  <option key={statusOption.value} value={statusOption.value}>
+                    {statusOption.label}
+                  </option>
+                ))}
+              </select>
+
+              {order.installationStartDate ? (
+                <>
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <FaCalendarAlt />
+                    <span>{formatInstallationDate(order.installationStartDate, order.installationEndDate)}</span>
+                  </div>
+                  <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={() => setShowRescheduleModal(true)}>
+                    <FaCalendarAlt /> Reprogramar
+                  </Button>
+                </>
+              ) : (
+                <p className="text-sm text-gray-400">Sin fecha de instalación</p>
+              )}
             </div>
           </div>
         </div>
@@ -324,6 +408,18 @@ export default function OrderDetail() {
           onClose={() => setShowOptimizationModal(false)}
         />
       )}
+      {showRescheduleModal && (
+        <RescheduleOrderModal
+          open={showRescheduleModal}
+          onClose={() => setShowRescheduleModal(false)}
+          order={order}
+          onRescheduleSuccess={() => {
+            setShowRescheduleModal(false); // Cierra el modal
+            fetchOrder(); // Vuelve a cargar los datos del pedido para mostrar la nueva fecha
+          }}
+        />
+      )}
     </div>
   );
 }
+

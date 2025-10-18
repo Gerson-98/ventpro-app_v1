@@ -1,7 +1,14 @@
 // src/quotations/quotations.service.ts
 
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateQuotationDto } from './dto/create-quotation.dto';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import {
+  CreateQuotationDto,
+  ConfirmQuotationDto,
+} from './dto/create-quotation.dto';
 import { UpdateQuotationDto } from './dto/update-quotation.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { WindowsService } from '../windows/windows.service';
@@ -18,15 +25,22 @@ export class QuotationsService {
     const { project, price_per_m2, clientId, windows } = createQuotationDto;
     let totalQuotationPrice = 0;
 
+    // ✨ LÓGICA DE PRECIO ACTUALIZADA ✨
     const windowsData = windows.map((win) => {
-      const width_cm = win.width_m * 100;
-      const height_cm = win.height_m * 100;
-      const windowPrice = win.width_m * win.height_m * price_per_m2;
+      const widthInM = win.width_m;
+      const heightInM = win.height_m;
+
+      // Determina qué precio usar: el individual si existe, si no, el global.
+      const priceToUse = win.price_per_m2 || price_per_m2;
+
+      const windowPrice = widthInM * heightInM * priceToUse;
       totalQuotationPrice += windowPrice;
+
       return {
-        width_cm,
-        height_cm,
+        width_cm: widthInM * 100,
+        height_cm: heightInM * 100,
         price: windowPrice,
+        price_per_m2: win.price_per_m2 || null, // Guarda el precio individual si existe
         window_type_id: win.window_type_id,
         color_id: win.color_id,
         glass_color_id: win.glass_color_id,
@@ -75,7 +89,6 @@ export class QuotationsService {
     const { windows, ...quotationData } = updateQuotationDto;
 
     return this.prisma.$transaction(async (prisma) => {
-      // 1. Primero, obtenemos la cotización actual para tener sus datos.
       const existingQuotation = await prisma.quotation.findUnique({
         where: { id },
       });
@@ -83,38 +96,42 @@ export class QuotationsService {
         throw new NotFoundException(`Cotización con ID #${id} no encontrada.`);
       }
 
-      // 2. Determinamos el precio a usar: el nuevo si se envió, si no, el que ya existía.
-      const priceForCalc =
+      // El precio global a usar para los cálculos
+      const globalPriceForCalc =
         quotationData.price_per_m2 ?? existingQuotation.price_per_m2;
 
       let totalQuotationPrice = 0;
+
+      // ✨ LÓGICA DE PRECIO ACTUALIZADA EN UPDATE ✨
       const windowsData = windows?.map((win) => {
-        const windowPrice = win.width_m * win.height_m * priceForCalc;
+        const widthInM = win.width_m;
+        const heightInM = win.height_m;
+
+        // Determina qué precio usar
+        const priceToUse = win.price_per_m2 || globalPriceForCalc;
+
+        const windowPrice = widthInM * heightInM * priceToUse;
         totalQuotationPrice += windowPrice;
+
         return {
-          width_cm: win.width_m * 100,
-          height_cm: win.height_m * 100,
+          width_cm: widthInM * 100,
+          height_cm: heightInM * 100,
           price: windowPrice,
+          price_per_m2: win.price_per_m2 || null,
           window_type_id: win.window_type_id,
           color_id: win.color_id,
           glass_color_id: win.glass_color_id,
         };
       });
 
-      // 3. Borramos las ventanas viejas
-      await prisma.quotationWindow.deleteMany({
-        where: { quotation_id: id },
-      });
+      await prisma.quotationWindow.deleteMany({ where: { quotation_id: id } });
 
-      // 4. Actualizamos la cotización con los nuevos datos y las nuevas ventanas
       const updatedQuotation = await prisma.quotation.update({
         where: { id },
         data: {
           ...quotationData,
           total_price: totalQuotationPrice,
-          quotation_windows: {
-            create: windowsData,
-          },
+          quotation_windows: { create: windowsData },
         },
         include: { quotation_windows: true },
       });
@@ -123,9 +140,18 @@ export class QuotationsService {
     });
   }
   // 👇 AÑADE ESTA NUEVA FUNCIÓN COMPLETA 👇
-  async confirm(id: number) {
+  async confirm(id: number, confirmQuotationDto: ConfirmQuotationDto) {
+    // Extraemos las fechas del DTO
+    const { installationStartDate, installationEndDate } = confirmQuotationDto;
+
+    // Validación clave: si no vienen las fechas, lanzamos un error.
+    if (!installationStartDate || !installationEndDate) {
+      throw new BadRequestException(
+        'Se requieren las fechas de inicio y fin de instalación para confirmar.',
+      );
+    }
+
     return this.prisma.$transaction(async (prisma) => {
-      // 1. Buscamos la cotización original (esto está perfecto)
       const quotation = await prisma.quotation.findUnique({
         where: { id },
         include: {
@@ -140,19 +166,14 @@ export class QuotationsService {
         throw new Error(`La cotización #${id} ya ha sido confirmada.`);
       }
 
-      // 2. Preparamos los datos de las ventanas CON CÁLCULOS
-      // Como 'calculateWindowMeasurements' es asíncrona, usamos Promise.all
       const windowsToCreate = await Promise.all(
         quotation.quotation_windows.map(async (win) => {
-          // Para CADA ventana, ejecutamos el cálculo
           const { hojaAncho, hojaAlto, vidrioAncho, vidrioAlto } =
             await this.windowsService.calculateWindowMeasurements(
               win.window_type_id,
               win.width_cm,
               win.height_cm,
             );
-
-          // Devolvemos el objeto completo con los campos calculados
           return {
             width_cm: win.width_cm,
             height_cm: win.height_cm,
@@ -160,7 +181,6 @@ export class QuotationsService {
             window_type_id: win.window_type_id,
             color_id: win.color_id,
             glass_color_id: win.glass_color_id,
-            // 👇 ¡Aquí está la magia! Añadimos los campos calculados 👇
             hojaAncho,
             hojaAlto,
             vidrioAncho,
@@ -169,26 +189,29 @@ export class QuotationsService {
         }),
       );
 
-      // 3. Creamos el nuevo Pedido con los datos completos
       const newOrder = await prisma.orders.create({
         data: {
           project: quotation.project,
           total: quotation.total_price,
           status: 'en proceso',
           clientId: quotation.clientId,
+          // 👇 Guardamos las fechas en el nuevo pedido 👇
+          installationStartDate: new Date(installationStartDate),
+          installationEndDate: new Date(installationEndDate),
           windows: {
-            create: windowsToCreate, // 👈 Usamos los datos ya calculados
+            create: windowsToCreate,
           },
         },
       });
 
-      // 4. Actualizamos el estado de la cotización (esto está perfecto)
       await prisma.quotation.update({
         where: { id: quotation.id },
-        data: { status: 'confirmado' },
+        data: {
+          status: 'confirmado',
+          generatedOrder: { connect: { id: newOrder.id } },
+        }, // Mejoramos la relación
       });
 
-      // 5. Devolvemos el pedido recién creado
       return newOrder;
     });
   }

@@ -5,7 +5,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '@/services/api';
 import { FaFilePdf, FaCheckCircle, FaEdit } from 'react-icons/fa';
 import AddQuotationModal from '@/components/AddQuotationModal';
-import { generateQuotationPDF } from '@/lib/generateQuotationPDF'; // ✨ 1. Importamos la función del PDF
+import { generateQuotationPDF } from '@/lib/generateQuotationPDF';
+import ConfirmQuotationModal from '@/components/ConfirmQuotationModal'; // ✨ 1. Importamos la función del PDF
 
 export default function QuotationDetail() {
     const { id } = useParams();
@@ -14,6 +15,7 @@ export default function QuotationDetail() {
     const [loading, setLoading] = useState(true);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isConfirming, setIsConfirming] = useState(false);
+    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
     const fetchQuotation = async () => {
         setLoading(true);
@@ -41,26 +43,7 @@ export default function QuotationDetail() {
         return <div className="text-center p-8 text-red-500">No se pudo encontrar la cotización.</div>;
     }
 
-    const handleConfirm = async () => {
-        if (!confirm(`¿Estás seguro de que deseas confirmar esta cotización y crear un nuevo pedido?`)) {
-            return;
-        }
-        setIsConfirming(true);
-        try {
-            // Hacemos la llamada al nuevo endpoint del backend
-            const response = await api.post(`/quotations/${id}/confirm`);
-            const newOrder = response.data; // El backend nos devuelve el pedido creado
 
-            // Redirigimos al usuario a la página de detalle del nuevo pedido
-            navigate(`/orders/${newOrder.id}`);
-
-        } catch (error) {
-            console.error("❌ Error al confirmar la cotización:", error);
-            alert("No se pudo confirmar la cotización. Es posible que ya haya sido confirmada.");
-        } finally {
-            setIsConfirming(false);
-        }
-    };
 
     // ✨ 2. Creamos la función que llamará al generador de PDF
     const handleGeneratePDF = () => {
@@ -96,12 +79,12 @@ export default function QuotationDetail() {
                             <FaFilePdf /> PDF
                         </button>
                         <button
-                            onClick={handleConfirm}
-                            disabled={quotation.status === 'confirmado' || isConfirming}
+                            onClick={() => setIsConfirmModalOpen(true)}
+                            disabled={quotation.status === 'confirmado'}
                             className="flex items-center gap-2 bg-green-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                         >
                             <FaCheckCircle />
-                            {isConfirming ? 'Confirmando...' : (quotation.status === 'confirmado' ? 'Confirmado' : 'Confirmar')}
+                            {quotation.status === 'confirmado' ? 'Confirmado' : 'Confirmar'}
                         </button>
                     </div>
                 </div>
@@ -152,6 +135,18 @@ export default function QuotationDetail() {
                     onSave={() => {
                         setIsEditModalOpen(false);
                         fetchQuotation();
+                    }}
+                />
+            )}
+            {isConfirmModalOpen && (
+                <ConfirmQuotationModal
+                    open={isConfirmModalOpen}
+                    onClose={() => setIsConfirmModalOpen(false)}
+                    quotationId={quotation.id}
+                    onConfirmSuccess={(newOrderId) => {
+                        // Cuando la confirmación es exitosa, el modal nos da el ID del nuevo pedido
+                        // y nosotros nos encargamos de redirigir al usuario.
+                        navigate(`/orders/${newOrderId}`);
                     }}
                 />
             )}

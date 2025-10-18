@@ -75,6 +75,8 @@ model orders {
   status                   String?
   total                    Float?
   clientId                 Int?
+  installationStartDate    DateTime?  // ✨ AÑADE ESTA LÍNEA
+  installationEndDate      DateTime?  // ✨ AÑADE ESTA LÍNEA
   createdAt                DateTime   @default(now())
   updatedAt                DateTime?
   generatedFromQuotationId Int?       @unique
@@ -146,6 +148,7 @@ model QuotationWindow {
   width_cm       Float
   height_cm      Float
   price          Float
+  price_per_m2     Float?
   quotation_id   Int
   window_type_id Int
   color_id       Int

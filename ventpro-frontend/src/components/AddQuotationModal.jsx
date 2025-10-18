@@ -21,9 +21,7 @@ export default function AddQuotationModal({ open, onClose, onSave, quotationToEd
         project: '', clientId: '', price_per_m2: '', windows: [],
     });
 
-    // ✨ Lógica movida al useEffect correcto
     useEffect(() => {
-        // 1. Cargar catálogos solo cuando el modal se abre
         if (open) {
             const fetchCatalogs = async () => {
                 try {
@@ -39,7 +37,6 @@ export default function AddQuotationModal({ open, onClose, onSave, quotationToEd
             fetchCatalogs();
         }
 
-        // 2. Llenar el formulario si estamos en modo edición
         if (quotationToEdit) {
             setIsEditing(true);
             setQuotation({
@@ -47,29 +44,33 @@ export default function AddQuotationModal({ open, onClose, onSave, quotationToEd
                 clientId: quotationToEdit.clientId || '',
                 price_per_m2: quotationToEdit.price_per_m2,
                 windows: quotationToEdit.quotation_windows.map(win => ({
-                    width_m: win.width_cm / 100, // Convertimos de cm a m
+                    width_m: win.width_cm / 100,
                     height_m: win.height_cm / 100,
+                    price_per_m2: win.price_per_m2 || '', // ✨ Carga el precio individual si existe
                     window_type_id: win.window_type_id,
                     color_id: win.color_id,
                     glass_color_id: win.glass_color_id,
                 })),
             });
         } else {
-            // Limpiar formulario si estamos en modo creación
             setIsEditing(false);
             setQuotation({ project: '', clientId: '', price_per_m2: '', windows: [] });
         }
     }, [open, quotationToEdit]);
 
-    // --- Manejadores de estado (ahora en el lugar correcto) ---
     const handleQuotationChange = (e) => setQuotation(prev => ({ ...prev, [e.target.name]: e.target.value }));
+
     const handleWindowChange = (index, e) => {
         const updatedWindows = [...quotation.windows];
         updatedWindows[index][e.target.name] = e.target.value;
         setQuotation(prev => ({ ...prev, windows: updatedWindows }));
     };
-    const addWindow = () => setQuotation(prev => ({ ...prev, windows: [...prev.windows, { width_m: '', height_m: '', window_type_id: '', color_id: '', glass_color_id: '' }] }));
+
+    // ✨ Al añadir una ventana, se inicializa el nuevo campo de precio
+    const addWindow = () => setQuotation(prev => ({ ...prev, windows: [...prev.windows, { width_m: '', height_m: '', price_per_m2: '', window_type_id: '', color_id: '', glass_color_id: '' }] }));
+
     const removeWindow = (index) => setQuotation(prev => ({ ...prev, windows: prev.windows.filter((_, i) => i !== index) }));
+
     const duplicateWindow = (index) => {
         const windowToDuplicate = { ...quotation.windows[index] };
         const updatedWindows = [...quotation.windows];
@@ -77,7 +78,6 @@ export default function AddQuotationModal({ open, onClose, onSave, quotationToEd
         setQuotation(prev => ({ ...prev, windows: updatedWindows }));
     };
 
-    // ✨ handleSubmit ahora es "inteligente"
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -86,8 +86,12 @@ export default function AddQuotationModal({ open, onClose, onSave, quotationToEd
             clientId: Number(quotation.clientId) || null,
             price_per_m2: Number(quotation.price_per_m2),
             windows: quotation.windows.map(win => ({
-                width_m: Number(win.width_m), height_m: Number(win.height_m),
-                window_type_id: Number(win.window_type_id), color_id: Number(win.color_id), glass_color_id: Number(win.glass_color_id),
+                width_m: Number(win.width_m),
+                height_m: Number(win.height_m),
+                price_per_m2: win.price_per_m2 ? Number(win.price_per_m2) : null, // ✨ Se envía el precio individual (o null) al backend
+                window_type_id: Number(win.window_type_id),
+                color_id: Number(win.color_id),
+                glass_color_id: Number(win.glass_color_id),
             })),
         };
         try {
@@ -110,14 +114,14 @@ export default function AddQuotationModal({ open, onClose, onSave, quotationToEd
             <DialogPrimitive.Root open={open} onOpenChange={onClose}>
                 <DialogPrimitive.Portal>
                     <DialogPrimitive.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" />
-                    <DialogContent className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto z-50">
+                    {/* ✨ Se aumenta el ancho máximo del modal para dar espacio al nuevo campo */}
+                    <DialogContent className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto z-50">
                         <DialogHeader>
                             <DialogTitle className="text-2xl font-bold text-gray-800">
                                 {isEditing ? 'Editar Cotización' : 'Crear Nueva Cotización'}
                             </DialogTitle>
                         </DialogHeader>
                         <form onSubmit={handleSubmit} className="mt-4 space-y-6">
-                            {/* --- DATOS GENERALES --- */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="md:col-span-2">
                                     <label className="block text-sm font-medium text-gray-700">Nombre del Proyecto</label>
@@ -136,23 +140,27 @@ export default function AddQuotationModal({ open, onClose, onSave, quotationToEd
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700">Precio por m² (Q)</label>
+                                    <label className="block text-sm font-medium text-gray-700">Precio Global por m² (Q)</label>
                                     <input type="number" step="0.01" name="price_per_m2" value={quotation.price_per_m2} onChange={handleQuotationChange} className="mt-1 w-full border-gray-300 rounded-md shadow-sm" required />
                                 </div>
                             </div>
                             <hr />
-                            {/* --- LISTA DE VENTANAS --- */}
                             <div>
                                 <h2 className="text-xl font-semibold text-gray-800 mb-4">Ventanas</h2>
                                 <div className="space-y-4">
                                     {quotation.windows.map((win, index) => (
+                                        // ✨ Se ajusta el grid para el nuevo campo y se redistribuye el espacio
                                         <div key={index} className="bg-gray-50 p-4 rounded-lg border grid grid-cols-12 gap-3 items-end">
-                                            <div className="col-span-2"><label className="text-xs">Ancho (m)</label><input type="number" step="0.01" name="width_m" value={win.width_m} onChange={(e) => handleWindowChange(index, e)} className="w-full text-sm p-2 border-gray-300 rounded-md" required /></div>
-                                            <div className="col-span-2"><label className="text-xs">Alto (m)</label><input type="number" step="0.01" name="height_m" value={win.height_m} onChange={(e) => handleWindowChange(index, e)} className="w-full text-sm p-2 border-gray-300 rounded-md" required /></div>
-                                            <div className="col-span-3"><label className="text-xs">Tipo Ventana</label><select name="window_type_id" value={win.window_type_id} onChange={(e) => handleWindowChange(index, e)} className="w-full text-sm p-2 border-gray-300 rounded-md" required><option value="">--</option>{windowTypes.map(wt => <option key={wt.id} value={wt.id}>{wt.name}</option>)}</select></div>
+                                            <div className="col-span-1"><label className="text-xs">Ancho (m)</label><input type="number" step="0.01" name="width_m" value={win.width_m} onChange={(e) => handleWindowChange(index, e)} className="w-full text-sm p-2 border-gray-300 rounded-md" required /></div>
+                                            <div className="col-span-1"><label className="text-xs">Alto (m)</label><input type="number" step="0.01" name="height_m" value={win.height_m} onChange={(e) => handleWindowChange(index, e)} className="w-full text-sm p-2 border-gray-300 rounded-md" required /></div>
+
+                                            {/* ✨ NUEVO CAMPO PARA PRECIO INDIVIDUAL POR VENTANA ✨ */}
+                                            <div className="col-span-2"><label className="text-xs">Precio m² (Q)</label><input type="number" step="0.01" name="price_per_m2" value={win.price_per_m2} onChange={(e) => handleWindowChange(index, e)} className="w-full text-sm p-2 border-gray-300 rounded-md" placeholder={quotation.price_per_m2 || 'Global'} /></div>
+
+                                            <div className="col-span-2"><label className="text-xs">Tipo Ventana</label><select name="window_type_id" value={win.window_type_id} onChange={(e) => handleWindowChange(index, e)} className="w-full text-sm p-2 border-gray-300 rounded-md" required><option value="">--</option>{windowTypes.map(wt => <option key={wt.id} value={wt.id}>{wt.name}</option>)}</select></div>
                                             <div className="col-span-2"><label className="text-xs">Color PVC</label><select name="color_id" value={win.color_id} onChange={(e) => handleWindowChange(index, e)} className="w-full text-sm p-2 border-gray-300 rounded-md" required><option value="">--</option>{pvcColors.map(pc => <option key={pc.id} value={pc.id}>{pc.name}</option>)}</select></div>
                                             <div className="col-span-2"><label className="text-xs">Color Vidrio</label><select name="glass_color_id" value={win.glass_color_id} onChange={(e) => handleWindowChange(index, e)} className="w-full text-sm p-2 border-gray-300 rounded-md" required><option value="">--</option>{glassColors.map(gc => <option key={gc.id} value={gc.id}>{gc.name}</option>)}</select></div>
-                                            <div className="col-span-1 flex items-center justify-center gap-4">
+                                            <div className="col-span-2 flex items-center justify-end gap-4">
                                                 <button type="button" onClick={() => duplicateWindow(index)} className="text-blue-500 hover:text-blue-700" title="Duplicar Fila"><FaClone /></button>
                                                 <button type="button" onClick={() => removeWindow(index)} className="text-red-500 hover:text-red-700" title="Eliminar Fila"><FaTrashAlt /></button>
                                             </div>
@@ -171,8 +179,6 @@ export default function AddQuotationModal({ open, onClose, onSave, quotationToEd
                     </DialogContent>
                 </DialogPrimitive.Portal>
             </DialogPrimitive.Root>
-
-            {/* El modal de AddClientModal se queda igual */}
             <AddClientModal
                 open={showAddClientModal}
                 onClose={() => setShowAddClientModal(false)}

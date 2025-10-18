@@ -11,7 +11,10 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { QuotationsService } from './quotations.service';
-import { CreateQuotationDto } from './dto/create-quotation.dto';
+import {
+  CreateQuotationDto,
+  ConfirmQuotationDto,
+} from './dto/create-quotation.dto';
 import { UpdateQuotationDto } from './dto/update-quotation.dto';
 
 @Controller('quotations')
@@ -37,8 +40,11 @@ export class QuotationsController {
   }
 
   @Post(':id/confirm')
-  confirm(@Param('id') id: string) {
-    return this.quotationsService.confirm(+id);
+  confirm(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() confirmQuotationDto: ConfirmQuotationDto, // Ahora recibe el body con las fechas
+  ) {
+    return this.quotationsService.confirm(id, confirmQuotationDto);
   }
 
   @Patch(':id')
