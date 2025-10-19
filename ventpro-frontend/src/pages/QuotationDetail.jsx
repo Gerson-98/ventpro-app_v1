@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '@/services/api';
-import { FaFilePdf, FaCheckCircle, FaEdit } from 'react-icons/fa';
+import { FaFilePdf, FaCheckCircle, FaEdit, FaWhatsapp } from 'react-icons/fa';
 import AddQuotationModal from '@/components/AddQuotationModal';
 import { generateQuotationPDF } from '@/lib/generateQuotationPDF';
 import ConfirmQuotationModal from '@/components/ConfirmQuotationModal'; // ✨ 1. Importamos la función del PDF
@@ -52,6 +52,33 @@ export default function QuotationDetail() {
         }
     };
 
+
+    const handleShareWhatsApp = () => {
+        if (!quotation?.client?.phone) {
+            alert("Este cliente no tiene un número de teléfono registrado.");
+            return;
+        }
+
+        // Limpiamos el número de teléfono (quitamos espacios, guiones, etc.)
+        // y nos aseguramos de que tenga el código de país de Guatemala (502) si no lo tiene.
+        let phoneNumber = quotation.client.phone.replace(/[^0-9]/g, '');
+        if (phoneNumber.length === 8) { // Asumimos que un número de 8 dígitos es de GT
+            phoneNumber = `502${phoneNumber}`;
+        }
+
+        // Creamos el mensaje predefinido
+        const message = `¡Hola ${quotation.client.name}! Te comparto la cotización para el proyecto "${quotation.project}". Por favor, avísame si tienes alguna duda. Saludos.`;
+
+        // Codificamos el mensaje para que sea seguro en una URL
+        const encodedMessage = encodeURIComponent(message);
+
+        // Creamos el enlace final
+        const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
+
+        // Abrimos el enlace en una nueva pestaña
+        window.open(whatsappUrl, '_blank');
+    };
+
     return (
         <div className="max-w-5xl mx-auto">
             <Link to="/quotations" className="text-blue-600 hover:underline mb-4 inline-block">
@@ -77,6 +104,13 @@ export default function QuotationDetail() {
                             onClick={handleGeneratePDF}
                             className="flex items-center gap-2 bg-red-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-red-600">
                             <FaFilePdf /> PDF
+                        </button>
+                        <button
+                            onClick={handleShareWhatsApp}
+                            className="flex items-center gap-2 bg-green-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-green-600"
+                            title="Compartir por WhatsApp"
+                        >
+                            <FaWhatsapp /> WhatsApp
                         </button>
                         <button
                             onClick={() => setIsConfirmModalOpen(true)}

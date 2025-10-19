@@ -3,7 +3,8 @@ import WindowTypesTab from "./Tabs/WindowTypesTab";
 import PvcColorsTab from "./Tabs/PvcColorsTab";
 import GlassColorsTab from "./Tabs/GlassColorsTab";
 import ClientsTab from "./Tabs/ClientsTab";
-import CalculationsTab from "./Tabs/CalculationsTab"; // ✨ 1. Importa la nueva pestaña
+import CalculationsTab from "./Tabs/CalculationsTab";
+import UsersTab from "./Tabs/UsersTab"; // ✨ 1. Importa la nueva pestaña
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState("windowTypes");
@@ -14,6 +15,7 @@ export default function Admin() {
     { id: "pvcColors", label: "Colores PVC" },
     { id: "glassColors", label: "Tipos de Vidrio" },
     { id: "clients", label: "Clientes" },
+    { id: "users", label: "Usuarios" },
   ];
 
   return (
@@ -47,6 +49,7 @@ export default function Admin() {
         {activeTab === "glassColors" && <GlassColorsTab />}
         {activeTab === "clients" && <ClientsTab />}
         {activeTab === "calculations" && <CalculationsTab />} {/* ✨ 3. Añade la condición para mostrarla */}
+        {activeTab === "users" && <UsersTab />}
       </div>
     </div>
   );
