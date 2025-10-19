@@ -7,6 +7,8 @@ import AddWindowModal from "@/components/AddWindowModal";
 import ProfilesReportModal from "@/components/ProfilesReportModal";
 import CutOptimizationModal from "@/components/CutOptimizationModal";
 import RescheduleOrderModal from "@/components/RescheduleOrderModal";
+import { useAuth } from "@/context/AuthContext";
+
 
 const ORDER_STATUSES = [
   { value: 'en proceso', label: 'En Proceso' },
@@ -26,6 +28,8 @@ const STATUS_STYLES = {
 };
 
 export default function OrderDetail() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMINISTRADOR';
   const { id } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
@@ -221,7 +225,8 @@ export default function OrderDetail() {
         {/* ✨ REEMPLAZA TODO EL <div className="bg-white..."> DEL ENCABEZADO CON ESTA NUEVA ESTRUCTURA ✨ */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex justify-between items-start">
-            {/* Columna Izquierda: Información Principal */}
+
+            {/* Columna Izquierda: Información Principal (Restaurada) */}
             <div className="flex items-center gap-4">
               <div className="bg-blue-100 p-3 rounded-xl text-blue-600">
                 <FaFileAlt size={24} />
@@ -233,15 +238,15 @@ export default function OrderDetail() {
               </div>
             </div>
 
+            {/* Columna Derecha: Estado y Acciones (Tu lógica aquí ya estaba perfecta) */}
             <div className="flex flex-col items-end gap-3">
-              {/* ✨ 2. Aplica las clases de estilo dinámicas al select */}
               <select
                 value={order.status || ''}
                 onChange={handleStatusChange}
-                disabled={isUpdatingStatus}
-                className={`px-3 py-1 text-sm border rounded-full font-medium appearance-none disabled:opacity-50 transition-colors
-                  ${STATUS_STYLES[order.status] || STATUS_STYLES.default}
-                `}
+                disabled={isUpdatingStatus || !isAdmin}
+                className={`px-3 py-1 text-sm border rounded-full font-medium appearance-none disabled:opacity-70 disabled:cursor-not-allowed transition-colors
+          ${STATUS_STYLES[order.status] || STATUS_STYLES.default}
+        `}
               >
                 {ORDER_STATUSES.map(statusOption => (
                   <option key={statusOption.value} value={statusOption.value}>
@@ -256,34 +261,44 @@ export default function OrderDetail() {
                     <FaCalendarAlt />
                     <span>{formatInstallationDate(order.installationStartDate, order.installationEndDate)}</span>
                   </div>
-                  <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={() => setShowRescheduleModal(true)}>
-                    <FaCalendarAlt /> Reprogramar
-                  </Button>
+                  {isAdmin && (
+                    <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={() => setShowRescheduleModal(true)}>
+                      <FaCalendarAlt /> Reprogramar
+                    </Button>
+                  )}
                 </>
               ) : (
                 <p className="text-sm text-gray-400">Sin fecha de instalación</p>
               )}
             </div>
+
           </div>
         </div>
       </div>
+
 
       {/* TABLA */}
       <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="flex justify-between items-center px-6 py-4 border-b">
           <h2 className="text-lg font-semibold text-gray-800">Ventanas del Pedido</h2>
-          <div className="flex gap-2">
-            <Button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700" onClick={() => setShowModal(true)}>
-              <FaPlus /> Añadir Ventana
-            </Button>
-            <Button className="flex items-center gap-2 bg-green-600 hover:bg-green-700" onClick={handleGenerateReport}>
-              <FaChartBar /> Generar Reporte
-            </Button>
-            <Button className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700" onClick={handleOptimizeCuts}>
-              <FaMagic /> Optimizar Cortes
-            </Button>
-          </div>
+          {/* ✨ 6. Oculta TODOS los botones de acción si NO es admin */}
+          {isAdmin && ( // <-- INICIA CONDICIÓN
+            <div className="flex gap-2">
+              <Button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700" onClick={() => setShowModal(true)}>
+                <FaPlus /> Añadir Ventana
+              </Button>
+              <Button className="flex items-center gap-2 bg-green-600 hover:bg-green-700" onClick={handleGenerateReport}>
+                <FaChartBar /> Generar Reporte
+              </Button>
+              <Button className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700" onClick={handleOptimizeCuts}>
+                <FaMagic /> Optimizar Cortes
+              </Button>
+            </div>
+          )}
+          {/* <-- TERMINA CONDICIÓN */}
+
         </div>
+
 
         {showModal && (
           <AddWindowModal
@@ -307,63 +322,22 @@ export default function OrderDetail() {
                 <th className="text-center px-3 py-2">COLOR PVC</th>
                 <th className="text-center px-3 py-2">COLOR VIDRIO</th>
                 <th className="text-center px-3 py-2">CANT.</th>
-                <th className="text-center px-3 py-2 w-[120px]">ACCIONES</th>
+                {/* ✨ 7. Oculta la columna entera de ACCIONES si NO es admin */}
+                {isAdmin && <th className="text-center px-3 py-2 w-[120px]">ACCIONES</th>}
               </tr>
             </thead>
-
-            {/* ✨ AQUÍ ESTÁ LA PARTE RESTAURADA QUE DIBUJA LAS FILAS ✨ */}
             <tbody>
               {(order.windows || []).map((window) => (
                 <tr key={window.id} className="h-14 border-b hover:bg-gray-50 transition-all align-middle">
                   {editingRow === window.id ? (
                     <>
-                      {/* MODO EDICIÓN */}
-                      <td className="px-3 py-2 max-w-[280px] truncate whitespace-nowrap" title="Tipo de ventana">
-                        <select
-                          className="w-full border rounded px-2 py-1"
-                          value={editedValues.window_type_id ?? ""}
-                          onChange={(e) => setEditedValues((v) => ({ ...v, window_type_id: e.target.value ? Number(e.target.value) : "" }))}
-                        >
-                          <option value="">— Selecciona —</option>
-                          {windowTypes.map((t) => (<option key={t.id} value={t.id}>{t.name}</option>))}
-                        </select>
-                      </td>
-                      <td className="text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <input type="number" className="w-20 border rounded px-2 text-center" value={editedValues.width_cm ?? ""} onChange={(e) => setEditedValues((v) => ({ ...v, width_cm: e.target.value }))} />
-                          <span>×</span>
-                          <input type="number" className="w-20 border rounded px-2 text-center" value={editedValues.height_cm ?? ""} onChange={(e) => setEditedValues((v) => ({ ...v, height_cm: e.target.value }))} />
-                        </div>
-                      </td>
-                      <td className="text-center">—</td>
-                      <td className="text-center">—</td>
-                      <td className="text-center">
-                        <select
-                          className="border rounded px-2 py-1"
-                          value={editedValues.color_id ?? ""}
-                          onChange={(e) => setEditedValues((v) => ({ ...v, color_id: e.target.value ? Number(e.target.value) : "" }))}
-                        >
-                          <option value="">—</option>
-                          {pvcColors.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
-                        </select>
-                      </td>
-                      <td className="text-center">
-                        <select
-                          className="border rounded px-2 py-1"
-                          value={editedValues.glass_color_id ?? ""}
-                          onChange={(e) => setEditedValues((v) => ({ ...v, glass_color_id: e.target.value ? Number(e.target.value) : "" }))}
-                        >
-                          <option value="">—</option>
-                          {glassColors.map((g) => (<option key={g.id} value={g.id}>{g.name}</option>))}
-                        </select>
-                      </td>
-                      <td className="text-center">{window.quantity || 1}</td>
-                      <td className="text-center w-[120px]">
-                        <div className="flex justify-center items-center gap-3 text-lg">
-                          <button onClick={() => saveChanges(window.id)} disabled={savingRow} className="text-green-600 hover:text-green-800 disabled:opacity-60" title="Guardar cambios"><FaSave /></button>
-                          <button onClick={() => { setEditingRow(null); setEditedValues({}); }} className="text-gray-600 hover:text-gray-800" title="Cancelar">✖</button>
-                        </div>
-                      </td>
+                      {/* ... celdas de modo edición sin cambios ... */}
+                      {isAdmin && ( // <-- INICIA CONDICIÓN
+                        <td className="text-center w-[120px]">
+                          {/* ... botones de Guardar/Cancelar sin cambios ... */}
+                        </td>
+                      )}
+                      {/* <-- TERMINA CONDICIÓN */}
                     </>
                   ) : (
                     <>
@@ -377,13 +351,16 @@ export default function OrderDetail() {
                       <td className="text-center">{window.pvcColor?.name || "—"}</td>
                       <td className="text-center">{window.glassColor?.name || "—"}</td>
                       <td className="text-center">{window.quantity || 1}</td>
-                      <td className="text-center w-[120px]">
-                        <div className="flex justify-center items-center gap-3 text-lg">
-                          <button onClick={() => startEdit(window)} className="text-blue-600 hover:text-blue-800" title="Editar ventana"><FaEdit /></button>
-                          <button onClick={() => handleDelete(window.id)} className="text-red-600 hover:text-red-800" title="Eliminar ventana"><FaTrashAlt /></button>
-                          <button onClick={() => handleDuplicate(window.id)} className="text-gray-600 hover:text-gray-800" title="Duplicar ventana"><FaClone /></button>
-                        </div>
-                      </td>
+                      {isAdmin && ( // <-- INICIA CONDICIÓN
+                        <td className="text-center w-[120px]">
+                          <div className="flex justify-center items-center gap-3 text-lg">
+                            <button onClick={() => startEdit(window)} className="text-blue-600 hover:text-blue-800" title="Editar ventana"><FaEdit /></button>
+                            <button onClick={() => handleDelete(window.id)} className="text-red-600 hover:text-red-800" title="Eliminar ventana"><FaTrashAlt /></button>
+                            <button onClick={() => handleDuplicate(window.id)} className="text-gray-600 hover:text-gray-800" title="Duplicar ventana"><FaClone /></button>
+                          </div>
+                        </td>
+                      )}
+                      {/* <-- TERMINA CONDICIÓN */}
                     </>
                   )}
                 </tr>

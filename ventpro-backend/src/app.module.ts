@@ -14,6 +14,8 @@ import { PrismaService } from './prisma/prisma.service';
 import { WindowCalculationsModule } from './window-calculations/window-calculations.module';
 import { ReportsModule } from './reports/reports.module';
 import { QuotationsModule } from './quotations/quotations.module';
+import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { QuotationsModule } from './quotations/quotations.module';
     WindowCalculationsModule,
     ReportsModule,
     QuotationsModule,
+    UsersModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

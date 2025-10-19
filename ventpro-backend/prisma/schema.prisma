@@ -158,3 +158,21 @@ model QuotationWindow {
   pvcColor       pvcColor     @relation(fields: [color_id], references: [id])
   glassColor     glassColor   @relation(fields: [glass_color_id], references: [id])
 }
+
+enum Role {
+  ADMINISTRADOR
+  VENDEDOR
+}
+
+// Define la tabla de usuarios.
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String
+  password  String
+  role      Role     @default(VENDEDOR) // Por seguridad, el rol por defecto es el de menos privilegios.
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}

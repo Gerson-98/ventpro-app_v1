@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import api from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useAuth } from "@/context/AuthContext";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import AddClientModal from "@/components/AddClientModal";
 
 export default function Orders() {
+  const { user } = useAuth();
   const [orders, setOrders] = useState([]);
   const [clients, setClients] = useState([]);
   const [showAddClient, setShowAddClient] = useState(false);
@@ -90,103 +92,105 @@ export default function Orders() {
         </h1>
 
         {/* MODAL DE NUEVO PEDIDO */}
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button>+ Agregar Pedido</Button>
-          </DialogTrigger>
+        {user?.role === 'ADMINISTRADOR' && (
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button>+ Agregar Pedido</Button>
+            </DialogTrigger>
 
-          <DialogContent
-            className="bg-white p-6 rounded-xl shadow-lg max-w-md"
-            aria-describedby="add-order-description"
-          >
-            <DialogHeader>
-              <DialogTitle>Nuevo Pedido</DialogTitle>
-              <p
-                id="add-order-description"
-                className="text-sm text-gray-500 mt-1"
-              >
-                Llena los datos para crear un nuevo pedido.
-              </p>
-            </DialogHeader>
+            <DialogContent
+              className="bg-white p-6 rounded-xl shadow-lg max-w-md"
+              aria-describedby="add-order-description"
+            >
+              <DialogHeader>
+                <DialogTitle>Nuevo Pedido</DialogTitle>
+                <p
+                  id="add-order-description"
+                  className="text-sm text-gray-500 mt-1"
+                >
+                  Llena los datos para crear un nuevo pedido.
+                </p>
+              </DialogHeader>
 
-            <div className="space-y-3 mt-2">
-              {/* Nombre del proyecto */}
-              <div>
-                <Label>Nombre del Proyecto</Label>
-                <Input
-                  value={formData.project}
-                  onChange={(e) =>
-                    setFormData({ ...formData, project: e.target.value })
-                  }
-                  placeholder="Ej: Proyecto Santa Rosa"
-                  required
-                />
-              </div>
-
-              {/* Selector de cliente */}
-              <div>
-                <Label>Cliente</Label>
-                <div className="flex gap-2">
-                  <select
-                    value={formData.clientId}
+              <div className="space-y-3 mt-2">
+                {/* Nombre del proyecto */}
+                <div>
+                  <Label>Nombre del Proyecto</Label>
+                  <Input
+                    value={formData.project}
                     onChange={(e) =>
-                      setFormData({ ...formData, clientId: e.target.value })
+                      setFormData({ ...formData, project: e.target.value })
                     }
-                    className="flex-1 border rounded p-2"
+                    placeholder="Ej: Proyecto Santa Rosa"
                     required
-                  >
-                    <option value="">Seleccione cliente...</option>
-                    {clients.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                  />
+                </div>
 
-                  {/* Botón para abrir modal de cliente */}
-                  <Button
-                    onClick={() => setShowAddClient(true)}
-                    className="bg-green-600 hover:bg-green-700"
-                    type="button"
-                  >
-                    ➕
-                  </Button>
+                {/* Selector de cliente */}
+                <div>
+                  <Label>Cliente</Label>
+                  <div className="flex gap-2">
+                    <select
+                      value={formData.clientId}
+                      onChange={(e) =>
+                        setFormData({ ...formData, clientId: e.target.value })
+                      }
+                      className="flex-1 border rounded p-2"
+                      required
+                    >
+                      <option value="">Seleccione cliente...</option>
+                      {clients.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Botón para abrir modal de cliente */}
+                    <Button
+                      onClick={() => setShowAddClient(true)}
+                      className="bg-green-600 hover:bg-green-700"
+                      type="button"
+                    >
+                      ➕
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Total */}
+                <div>
+                  <Label>Total (Q)</Label>
+                  <Input
+                    type="number"
+                    value={formData.total}
+                    onChange={(e) =>
+                      setFormData({ ...formData, total: e.target.value })
+                    }
+                    placeholder="Ej: 2500"
+                    required
+                  />
                 </div>
               </div>
 
-              {/* Total */}
-              <div>
-                <Label>Total (Q)</Label>
-                <Input
-                  type="number"
-                  value={formData.total}
-                  onChange={(e) =>
-                    setFormData({ ...formData, total: e.target.value })
-                  }
-                  placeholder="Ej: 2500"
-                  required
-                />
-              </div>
-            </div>
+              <DialogFooter>
+                <Button onClick={createOrder}>Guardar Pedido</Button>
+              </DialogFooter>
 
-            <DialogFooter>
-              <Button onClick={createOrder}>Guardar Pedido</Button>
-            </DialogFooter>
-
-            {/* MODAL ANIDADO DE CLIENTE */}
-            <AddClientModal
-              open={showAddClient}
-              onClose={() => setShowAddClient(false)}
-              onSave={(newClient) => {
-                setClients((prev) => [...prev, newClient]);
-                setFormData((prev) => ({
-                  ...prev,
-                  clientId: newClient.id,
-                }));
-              }}
-            />
-          </DialogContent>
-        </Dialog>
+              {/* MODAL ANIDADO DE CLIENTE */}
+              <AddClientModal
+                open={showAddClient}
+                onClose={() => setShowAddClient(false)}
+                onSave={(newClient) => {
+                  setClients((prev) => [...prev, newClient]);
+                  setFormData((prev) => ({
+                    ...prev,
+                    clientId: newClient.id,
+                  }));
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {/* LISTADO DE PEDIDOS */}
@@ -211,11 +215,10 @@ export default function Orders() {
                   </span>
                 </p>
                 <p
-                  className={`text-sm font-medium ${
-                    order.status === "completado"
-                      ? "text-green-600"
-                      : "text-yellow-600"
-                  }`}
+                  className={`text-sm font-medium ${order.status === "completado"
+                    ? "text-green-600"
+                    : "text-yellow-600"
+                    }`}
                 >
                   Estado: {order.status}
                 </p>
@@ -227,12 +230,14 @@ export default function Orders() {
                   >
                     Ver Detalles
                   </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={() => deleteOrder(order.id)}
-                  >
-                    Eliminar
-                  </Button>
+                  {user?.role === 'ADMINISTRADOR' && (
+                    <Button
+                      variant="destructive"
+                      onClick={() => deleteOrder(order.id)}
+                    >
+                      Eliminar
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -242,3 +247,4 @@ export default function Orders() {
     </div>
   );
 }
+
